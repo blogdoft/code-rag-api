@@ -30,7 +30,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      Database__ConnectionString: "Host=postgres;Port=5432;Database=coderag;Username=coderag;Password=coderag"
+      ConnectionStrings__Database: "Host=postgres;Port=5432;Database=coderag;Username=coderag;Password=coderag"
       Embeddings__Provider: "Ollama"
       Embeddings__Model: "bge-m3"
       Embeddings__BaseUrl: "http://ollama:11434"

@@ -12,7 +12,7 @@ public sealed class CustomWebApplicationFactory(string connectionString) : WebAp
         {
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Database:ConnectionString"] = connectionString,
+                ["ConnectionStrings:Database"] = connectionString,
                 ["Embeddings:Provider"] = "Ollama",
                 ["Embeddings:Model"] = "bge-m3",
                 ["Embeddings:BaseUrl"] = "http://localhost:11434",

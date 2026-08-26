@@ -51,7 +51,7 @@ try
     builder.Services.AddOpenApi();
 
     builder.Services.AddApplication();
-    builder.Services.AddDatabaseInfrastructure(builder.Configuration);
+    builder.Services.AddDatabaseInfrastructure();
 
     builder.Services.AddEmbeddingAbstraction(builder.Configuration);
     builder.Services.AddLocalEmbeddingProvider();

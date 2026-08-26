@@ -33,7 +33,7 @@ docker compose exec ollama ollama pull bge-m3
 ```
 
 To run the API outside Docker, point it at your own Postgres/embedding provider via
-`src/CodeRag.Api/appsettings.json` (or environment variables, e.g. `Database__ConnectionString`,
+`src/CodeRag.Api/appsettings.json` (or environment variables, e.g. `ConnectionStrings__Database`,
 `Embeddings__Provider`) and:
 
 ```bash
@@ -42,7 +42,7 @@ dotnet run --project src/CodeRag.Api
 
 ## Configuration
 
-- `Database:ConnectionString` — Npgsql connection string.
+- `ConnectionStrings:Database` — Npgsql connection string.
 - `Embeddings:Provider` — `Local`, `Ollama`, or `OpenAI`.
 - `Embeddings:Model`, `Embeddings:Dimensions`, `Embeddings:Normalized` — must match a row in `embedding_models`.
 - `Embeddings:BaseUrl` / `Embeddings:ApiKey` — used by the Ollama/OpenAI providers.

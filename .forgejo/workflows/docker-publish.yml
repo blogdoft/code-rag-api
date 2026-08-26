@@ -1,0 +1,55 @@
+# Assumes a self-hosted act_runner labeled "docker" with access to a Docker daemon (either
+# privileged mode or a mounted docker socket) - adjust `runs-on` and the registry variables
+# below (Settings > Actions > Variables/Secrets) to match your Forgejo instance.
+name: Build, test and publish Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: docker
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:9.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore
+        run: dotnet restore CodeRag.sln
+
+      - name: Build
+        run: dotnet build CodeRag.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test CodeRag.sln --no-build --configuration Release
+
+  publish:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v4
+
+      # REGISTRY_IMAGE, REGISTRY_USERNAME are repo/org variables; REGISTRY_PASSWORD is a repo
+      # secret (a token with package-write scope for this Forgejo instance's registry).
+      - name: Log in to the container registry
+        run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ vars.REGISTRY }}" -u "${{ vars.REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build image
+        run: docker build -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}" -f Dockerfile .
+
+      - name: Push image
+        run: docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"

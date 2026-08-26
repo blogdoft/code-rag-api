@@ -1,0 +1,41 @@
+using BlogDoFT.Libs.ResultPattern;
+using CodeRag.Api.Contracts;
+using CodeRag.Api.Problems;
+using CodeRag.Application.CodeQueries;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CodeRag.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/projects/{projectId}/code-queries")]
+public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : ControllerBase
+{
+    [HttpPost]
+    public async Task<IActionResult> Query(
+        string projectId,
+        [FromBody] CodeQueryRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(projectId, out var id) || id < 1)
+        {
+            return ProblemResults.BadRequest(
+                $"The 'projectId' route parameter must be a positive integer; received '{projectId}'.",
+                HttpContext.Request.Path);
+        }
+
+        var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken).ConfigureAwait(false);
+
+        return result.Map(
+            onSuccess: results => (IActionResult)Ok(results.Select(ToResponse).ToArray()),
+            onFailure: failure => failure.ToActionResult(HttpContext));
+    }
+
+    private static CodeQueryResultResponse ToResponse(CodeQueryResult result) => new(
+        result.Id,
+        result.SourceFile,
+        result.Kind,
+        result.TypeName,
+        result.Member,
+        result.EmbeddingText,
+        result.Similarity);
+}

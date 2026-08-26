@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: coderag
+      POSTGRES_USER: coderag
+      POSTGRES_PASSWORD: coderag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coderag -d coderag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      Database__ConnectionString: "Host=postgres;Port=5432;Database=coderag;Username=coderag;Password=coderag"
+      Embeddings__Provider: "Ollama"
+      Embeddings__Model: "bge-m3"
+      Embeddings__BaseUrl: "http://ollama:11434"
+      Embeddings__Dimensions: "1024"
+      Embeddings__Normalized: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  ollama-data:

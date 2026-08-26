@@ -1,0 +1,25 @@
+namespace CodeRag.Embeddings.Abstraction;
+
+/// <summary>
+/// Converts natural language text into a vector embedding. Implementations wrap a specific
+/// provider (local ONNX model, Ollama, OpenAI, ...); callers depend only on this abstraction.
+/// </summary>
+public interface IEmbeddingGenerator
+{
+    /// <summary>Name of the provider backing this generator (e.g. "Local", "Ollama", "OpenAI").</summary>
+    string Provider { get; }
+
+    /// <summary>Name of the model used to generate embeddings.</summary>
+    string Model { get; }
+
+    /// <summary>Number of components in every vector this generator produces.</summary>
+    int Dimensions { get; }
+
+    /// <summary>
+    /// Generates an embedding for the given text.
+    /// </summary>
+    /// <exception cref="EmbeddingGenerationException">
+    /// The provider failed to generate an embedding (unreachable service, malformed response, etc.).
+    /// </exception>
+    Task<EmbeddingVector> GenerateAsync(string text, CancellationToken cancellationToken = default);
+}

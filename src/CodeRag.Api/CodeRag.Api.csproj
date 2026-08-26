@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.10.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CodeRag.Application\CodeRag.Application.csproj" />
+    <ProjectReference Include="..\CodeRag.Infrastructure.Database\CodeRag.Infrastructure.Database.csproj" />
+    <ProjectReference Include="..\CodeRag.Embeddings.Abstraction\CodeRag.Embeddings.Abstraction.csproj" />
+    <ProjectReference Include="..\CodeRag.Embeddings.Local\CodeRag.Embeddings.Local.csproj" />
+    <ProjectReference Include="..\CodeRag.Embeddings.Ollama\CodeRag.Embeddings.Ollama.csproj" />
+    <ProjectReference Include="..\CodeRag.Embeddings.OpenAI\CodeRag.Embeddings.OpenAI.csproj" />
+  </ItemGroup>
+
+</Project>

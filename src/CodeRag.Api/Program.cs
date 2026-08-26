@@ -58,6 +58,13 @@ try
     builder.Services.AddOllamaEmbeddingProvider();
     builder.Services.AddOpenAIEmbeddingProvider();
 
+    // Exposes the same Projects/Code Query functionality as MCP tools, for LLM clients doing
+    // code research, alongside the REST API. Stateless by default: no session affinity needed
+    // since these tools never need to message the client back (no sampling/elicitation).
+    builder.Services.AddMcpServer()
+        .WithHttpTransport()
+        .AddCodeRagTools();
+
     var app = builder.Build();
 
     if (app.Environment.IsDevelopment())
@@ -69,6 +76,7 @@ try
     app.UseHttpsRedirection();
     app.UseAuthorization();
     app.MapControllers();
+    app.MapMcp("/mcp");
 
     app.Run();
 }

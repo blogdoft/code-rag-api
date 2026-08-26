@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.10.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
@@ -23,6 +24,7 @@
     <ProjectReference Include="..\CodeRag.Embeddings.Local\CodeRag.Embeddings.Local.csproj" />
     <ProjectReference Include="..\CodeRag.Embeddings.Ollama\CodeRag.Embeddings.Ollama.csproj" />
     <ProjectReference Include="..\CodeRag.Embeddings.OpenAI\CodeRag.Embeddings.OpenAI.csproj" />
+    <ProjectReference Include="..\CodeRag.Mcp\CodeRag.Mcp.csproj" />
   </ItemGroup>
 
 </Project>

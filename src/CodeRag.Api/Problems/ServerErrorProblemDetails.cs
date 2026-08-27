@@ -11,5 +11,5 @@ public sealed class ServerErrorProblemDetails : ProblemDetails
 {
     public ExceptionDetails Exception { get; init; } = null!;
 
-    public sealed record ExceptionDetails(string ExceptionType, string Message, string? StackTrace);
+    public sealed record ExceptionDetails(string exceptionType, string message, string? stackTrace);
 }

@@ -21,11 +21,11 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         await InsertCodeDocumentAsync(projectId, modelId, "close-doc", new Vector(new float[] { 1f, 0f, 0f }));
         await InsertCodeDocumentAsync(projectId, modelId, "far-doc", new Vector(new float[] { 0f, 1f, 0f }));
 
-        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
+        var results = (await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10)).ToArray();
 
-        results.Count.ShouldBe(2);
-        results[0].EmbeddingText.ShouldBe("close-doc");
-        results[0].Similarity.ShouldBeGreaterThan(results[1].Similarity);
+        results.Length.ShouldBe(2);
+        results[0].embeddingText.ShouldBe("close-doc");
+        results[0].similarity.ShouldBeGreaterThan(results[1].similarity);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
 
         var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
 
-        results.ShouldAllBe(r => r.EmbeddingText == "own-doc");
+        results.ShouldAllBe(r => r.embeddingText == "own-doc");
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
 
         var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
 
-        results.ShouldAllBe(r => r.EmbeddingText == "matching-model-doc");
+        results.ShouldAllBe(r => r.embeddingText == "matching-model-doc");
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
 
         var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 2);
 
-        results.Count.ShouldBe(2);
+        results.Count().ShouldBe(2);
     }
 
     private string UniqueModelName() => $"bge-m3-{_faker.Random.AlphaNumeric(12)}";

@@ -8,14 +8,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.10.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
+    <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.0" />
+    <PackageReference Include="Roslynator.CodeFixes" Version="5.0.0" />
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +31,10 @@
     <ProjectReference Include="..\CodeRag.Embeddings.Ollama\CodeRag.Embeddings.Ollama.csproj" />
     <ProjectReference Include="..\CodeRag.Embeddings.OpenAI\CodeRag.Embeddings.OpenAI.csproj" />
     <ProjectReference Include="..\CodeRag.Mcp\CodeRag.Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
 
 </Project>

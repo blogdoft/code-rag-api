@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using CodeRag.Api.Filters;
 using CodeRag.Application;
 using CodeRag.Embeddings.Abstraction;
@@ -8,6 +7,7 @@ using CodeRag.Embeddings.OpenAI;
 using CodeRag.Infrastructure.Database;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using System.Text.Json.Serialization;
 
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(new ConfigurationBuilder()
@@ -78,7 +78,7 @@ try
     app.MapControllers();
     app.MapMcp("/mcp");
 
-    app.Run();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -86,8 +86,10 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
 
 /// <summary>Entry point marker so <c>WebApplicationFactory&lt;Program&gt;</c> can bootstrap this API in tests.</summary>
-public partial class Program;
+public partial class Program
+{
+}

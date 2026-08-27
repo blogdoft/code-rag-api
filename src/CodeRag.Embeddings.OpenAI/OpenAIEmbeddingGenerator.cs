@@ -1,6 +1,6 @@
+using CodeRag.Embeddings.Abstraction;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using CodeRag.Embeddings.Abstraction;
 
 namespace CodeRag.Embeddings.OpenAI;
 
@@ -38,7 +38,7 @@ public sealed class OpenAIEmbeddingGenerator : IEmbeddingGenerator
             var body = await response.Content
                 .ReadFromJsonAsync<OpenAIEmbeddingResponse>(cancellationToken);
 
-            var embedding = body?.Data?.FirstOrDefault()?.Embedding
+            var embedding = body?.data?.FirstOrDefault()?.embedding
                 ?? throw new EmbeddingGenerationException("OpenAI returned no embeddings in its response.");
 
             return new EmbeddingVector(embedding);
@@ -50,12 +50,12 @@ public sealed class OpenAIEmbeddingGenerator : IEmbeddingGenerator
     }
 
     private sealed record OpenAIEmbeddingRequest(
-        [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("input")] string Input);
+        [property: JsonPropertyName("model")] string model,
+        [property: JsonPropertyName("input")] string input);
 
     private sealed record OpenAIEmbeddingResponse(
-        [property: JsonPropertyName("data")] List<OpenAIEmbeddingData>? Data);
+        [property: JsonPropertyName("data")] List<OpenAIEmbeddingData>? data);
 
     private sealed record OpenAIEmbeddingData(
-        [property: JsonPropertyName("embedding")] float[] Embedding);
+        [property: JsonPropertyName("embedding")] float[] embedding);
 }

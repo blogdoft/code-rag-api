@@ -1,8 +1,8 @@
-using System.Net;
-using System.Text.Json;
 using Bogus;
 using Dapper;
 using Shouldly;
+using System.Net;
+using System.Text.Json;
 
 namespace CodeRag.Api.Tests;
 

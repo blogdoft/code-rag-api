@@ -12,7 +12,7 @@ public sealed class CodeQueryService(
     /// <summary>Matches the <c>LIMIT 10</c> used in the reference similarity query.</summary>
     public const int ResultLimit = 10;
 
-    public async Task<Result<CodeQueryResult[]>> QueryAsync(
+    public async Task<Result<IEnumerable<CodeQueryResult>>> QueryAsync(
         long projectId,
         string? question,
         CancellationToken cancellationToken = default)
@@ -39,10 +39,10 @@ public sealed class CodeQueryService(
             embeddingGenerator.Provider,
             embeddingGenerator.Model,
             embeddingGenerator.Dimensions,
-            queryEmbedding.Values,
+            queryEmbedding.values,
             ResultLimit,
             cancellationToken);
 
-        return results.ToArray();
+        return Result<IEnumerable<CodeQueryResult>>.FromSuccess(results);
     }
 }

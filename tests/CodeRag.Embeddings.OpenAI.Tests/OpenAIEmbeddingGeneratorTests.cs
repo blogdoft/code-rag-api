@@ -1,6 +1,6 @@
-using System.Net;
 using CodeRag.Embeddings.Abstraction;
 using Shouldly;
+using System.Net;
 
 namespace CodeRag.Embeddings.OpenAI.Tests;
 
@@ -16,7 +16,7 @@ public sealed class OpenAIEmbeddingGeneratorTests
 
         var result = await sut.GenerateAsync("where is the discount logic?");
 
-        result.Values.ShouldBe([0.1f, 0.2f, 0.3f]);
+        result.values.ShouldBe([0.1f, 0.2f, 0.3f]);
     }
 
     [Fact]

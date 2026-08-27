@@ -1,6 +1,5 @@
-using System.Net.Http.Headers;
 using CodeRag.Embeddings.Abstraction;
-using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Headers;
 
 namespace CodeRag.Embeddings.OpenAI;
 

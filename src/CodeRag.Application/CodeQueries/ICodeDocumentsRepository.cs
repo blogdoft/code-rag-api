@@ -7,7 +7,7 @@ public interface ICodeDocumentsRepository
     /// given embedding model, that are most similar to <paramref name="queryEmbedding"/> by
     /// cosine distance, ordered by descending similarity.
     /// </summary>
-    Task<IReadOnlyList<CodeQueryResult>> SearchAsync(
+    Task<IEnumerable<CodeQueryResult>> SearchAsync(
         long projectId,
         string embeddingProvider,
         string embeddingModel,

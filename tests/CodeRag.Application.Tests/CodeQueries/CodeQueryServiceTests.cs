@@ -76,7 +76,7 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
         _embeddingGenerator.GenerateAsync(question, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.Values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>())
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>())
             .Returns(expected);
 
         var result = await _sut.QueryAsync(projectId, question);
@@ -99,7 +99,7 @@ public sealed class CodeQueryServiceTests
         await _sut.QueryAsync(projectId, "some question");
 
         await _codeDocumentsRepository.Received(1).SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.Values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>());
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>());
     }
 
     private CodeQueryResult[] CreateResults(int count) =>

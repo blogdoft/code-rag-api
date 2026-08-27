@@ -8,7 +8,7 @@ public interface ICodeQueryService
     /// Embeds <paramref name="question"/> and returns the most semantically similar code
     /// documents indexed for <paramref name="projectId"/>.
     /// </summary>
-    Task<Result<CodeQueryResult[]>> QueryAsync(
+    Task<Result<IEnumerable<CodeQueryResult>>> QueryAsync(
         long projectId,
         string? question,
         CancellationToken cancellationToken = default);

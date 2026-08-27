@@ -22,9 +22,9 @@ public sealed class ProjectsController(IProjectsService projectsService) : Contr
         var result = await projectsService.ListAsync(name, cancellationToken);
 
         return result.Map(
-            onSuccess: projects => (IActionResult)Ok(projects.Select(ToResponse).ToArray()),
+            onSuccess: projects => (IActionResult)Ok(projects.Select(ToResponse)),
             onFailure: failure => failure.ToActionResult(HttpContext));
     }
 
-    private static ProjectResponse ToResponse(Project project) => new(project.Id, project.Name, project.CreatedAt);
+    private static ProjectResponse ToResponse(Project project) => new(project.id, project.name, project.createdAt);
 }

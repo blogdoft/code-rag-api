@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "dotnet-reportgenerator-globaltool": {
+      "version": "5.5.0",
+      "commands": [
+        "reportgenerator"
+      ],
+      "rollForward": false
+    },
+    "dotnet-outdated-tool": {
+      "version": "4.6.8",
+      "commands": [
+        "dotnet-outdated"
+      ],
+      "rollForward": false
+    },
+    "gitversion.tool": {
+      "version": "6.4.0",
+      "commands": [
+        "dotnet-gitversion"
+      ],
+      "rollForward": false
+    },
+    "husky": {
+      "version": "0.7.2",
+      "commands": [
+        "husky"
+      ],
+      "rollForward": false
+    },
+    "swashbuckle.aspnetcore.cli": {
+      "version": "9.0.6",
+      "commands": [
+        "swagger"
+      ],
+      "rollForward": false
+    }
+  }
+}

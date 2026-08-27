@@ -1,6 +1,6 @@
+using CodeRag.Embeddings.Abstraction;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using CodeRag.Embeddings.Abstraction;
 
 namespace CodeRag.Embeddings.Ollama;
 
@@ -36,7 +36,7 @@ public sealed class OllamaEmbeddingGenerator : IEmbeddingGenerator
             var body = await response.Content
                 .ReadFromJsonAsync<OllamaEmbedResponse>(cancellationToken);
 
-            var embedding = body?.Embeddings?.FirstOrDefault()
+            var embedding = body?.embeddings?.FirstOrDefault()
                 ?? throw new EmbeddingGenerationException("Ollama returned no embeddings in its response.");
 
             return new EmbeddingVector(embedding);
@@ -48,9 +48,9 @@ public sealed class OllamaEmbeddingGenerator : IEmbeddingGenerator
     }
 
     private sealed record OllamaEmbedRequest(
-        [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("input")] string Input);
+        [property: JsonPropertyName("model")] string model,
+        [property: JsonPropertyName("input")] string input);
 
     private sealed record OllamaEmbedResponse(
-        [property: JsonPropertyName("embeddings")] List<float[]>? Embeddings);
+        [property: JsonPropertyName("embeddings")] List<float[]>? embeddings);
 }

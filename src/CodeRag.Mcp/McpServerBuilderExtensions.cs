@@ -1,5 +1,4 @@
 using CodeRag.Mcp.Tools;
-using ModelContextProtocol.Server;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

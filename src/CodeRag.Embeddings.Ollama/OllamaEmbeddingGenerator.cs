@@ -29,14 +29,12 @@ public sealed class OllamaEmbeddingGenerator : IEmbeddingGenerator
         try
         {
             using var response = await _httpClient
-                .PostAsJsonAsync("api/embed", new OllamaEmbedRequest(Model, text), cancellationToken)
-                .ConfigureAwait(false);
+                .PostAsJsonAsync("api/embed", new OllamaEmbedRequest(Model, text), cancellationToken);
 
             response.EnsureSuccessStatusCode();
 
             var body = await response.Content
-                .ReadFromJsonAsync<OllamaEmbedResponse>(cancellationToken)
-                .ConfigureAwait(false);
+                .ReadFromJsonAsync<OllamaEmbedResponse>(cancellationToken);
 
             var embedding = body?.Embeddings?.FirstOrDefault()
                 ?? throw new EmbeddingGenerationException("Ollama returned no embeddings in its response.");

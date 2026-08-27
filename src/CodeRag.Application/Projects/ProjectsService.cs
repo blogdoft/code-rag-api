@@ -24,7 +24,7 @@ public sealed class ProjectsService(IProjectsRepository repository) : IProjectsS
             }
         }
 
-        var projects = await repository.SearchAsync(nameFilter, cancellationToken).ConfigureAwait(false);
+        var projects = await repository.SearchAsync(nameFilter, cancellationToken);
         return projects.ToArray();
     }
 }

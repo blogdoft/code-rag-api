@@ -17,9 +17,9 @@ public sealed class ProjectsRepository(NpgsqlDataSource dataSource) : IProjectsR
             ORDER BY name
             """;
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, new { NameFilter = nameFilter }, cancellationToken: cancellationToken);
-        var rows = await connection.QueryAsync<ProjectRow>(command).ConfigureAwait(false);
+        var rows = await connection.QueryAsync<ProjectRow>(command);
 
         return rows.Select(r => r.ToProject()).ToArray();
     }
@@ -28,9 +28,9 @@ public sealed class ProjectsRepository(NpgsqlDataSource dataSource) : IProjectsR
     {
         const string sql = "SELECT EXISTS(SELECT 1 FROM public.projects WHERE id = @ProjectId)";
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, new { ProjectId = projectId }, cancellationToken: cancellationToken);
-        return await connection.ExecuteScalarAsync<bool>(command).ConfigureAwait(false);
+        return await connection.ExecuteScalarAsync<bool>(command);
     }
 
     private sealed record ProjectRow(long Id, string Name, DateTime CreatedAt)

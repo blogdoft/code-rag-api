@@ -31,14 +31,12 @@ public sealed class OpenAIEmbeddingGenerator : IEmbeddingGenerator
         try
         {
             using var response = await _httpClient
-                .PostAsJsonAsync("embeddings", new OpenAIEmbeddingRequest(Model, text), cancellationToken)
-                .ConfigureAwait(false);
+                .PostAsJsonAsync("embeddings", new OpenAIEmbeddingRequest(Model, text), cancellationToken);
 
             response.EnsureSuccessStatusCode();
 
             var body = await response.Content
-                .ReadFromJsonAsync<OpenAIEmbeddingResponse>(cancellationToken)
-                .ConfigureAwait(false);
+                .ReadFromJsonAsync<OpenAIEmbeddingResponse>(cancellationToken);
 
             var embedding = body?.Data?.FirstOrDefault()?.Embedding
                 ?? throw new EmbeddingGenerationException("OpenAI returned no embeddings in its response.");

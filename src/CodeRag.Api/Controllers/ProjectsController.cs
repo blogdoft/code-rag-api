@@ -19,7 +19,7 @@ public sealed class ProjectsController(IProjectsService projectsService) : Contr
         // contract requires the former to be a 400.
         var name = Request.Query.TryGetValue("name", out var values) ? values.ToString() : null;
 
-        var result = await projectsService.ListAsync(name, cancellationToken).ConfigureAwait(false);
+        var result = await projectsService.ListAsync(name, cancellationToken);
 
         return result.Map(
             onSuccess: projects => (IActionResult)Ok(projects.Select(ToResponse).ToArray()),

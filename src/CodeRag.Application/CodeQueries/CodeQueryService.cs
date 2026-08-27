@@ -22,7 +22,7 @@ public sealed class CodeQueryService(
             return CodeQueryFailures.QuestionRequired;
         }
 
-        var projectExists = await projectsRepository.ExistsAsync(projectId, cancellationToken).ConfigureAwait(false);
+        var projectExists = await projectsRepository.ExistsAsync(projectId, cancellationToken);
         if (!projectExists)
         {
             return CodeQueryFailures.ProjectNotFound(projectId);
@@ -32,7 +32,7 @@ public sealed class CodeQueryService(
         // failure they throw and are left to propagate as unhandled exceptions (-> 500), since
         // there is no client-facing recovery for them - only the two failures above are
         // domain-modeled outcomes exposed by the OpenAPI contract (400 / 404).
-        var queryEmbedding = await embeddingGenerator.GenerateAsync(question, cancellationToken).ConfigureAwait(false);
+        var queryEmbedding = await embeddingGenerator.GenerateAsync(question, cancellationToken);
 
         var results = await codeDocumentsRepository.SearchAsync(
             projectId,
@@ -41,7 +41,7 @@ public sealed class CodeQueryService(
             embeddingGenerator.Dimensions,
             queryEmbedding.Values,
             ResultLimit,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken);
 
         return results.ToArray();
     }

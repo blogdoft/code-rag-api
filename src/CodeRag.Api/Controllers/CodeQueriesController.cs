@@ -23,7 +23,7 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
                 HttpContext.Request.Path);
         }
 
-        var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken).ConfigureAwait(false);
+        var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken);
 
         return result.Map(
             onSuccess: results => (IActionResult)Ok(results.Select(ToResponse).ToArray()),

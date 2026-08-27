@@ -44,9 +44,9 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
             Limit = limit,
         };
 
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, parameters, cancellationToken: cancellationToken);
-        var rows = await connection.QueryAsync<CodeQueryResultRow>(command).ConfigureAwait(false);
+        var rows = await connection.QueryAsync<CodeQueryResultRow>(command);
 
         return rows.Select(r => r.ToResult()).ToArray();
     }

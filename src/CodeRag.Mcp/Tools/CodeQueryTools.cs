@@ -25,7 +25,7 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
         string question,
         CancellationToken cancellationToken)
     {
-        var result = await codeQueryService.QueryAsync(projectId, question, cancellationToken).ConfigureAwait(false);
+        var result = await codeQueryService.QueryAsync(projectId, question, cancellationToken);
 
         return result.Map<CodeQueryResult[], IReadOnlyList<CodeQueryToolResult>>(
             onSuccess: results => results.Select(ToToolResult).ToArray(),

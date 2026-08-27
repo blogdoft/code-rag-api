@@ -22,7 +22,7 @@ public sealed class ProjectTools(IProjectsService projectsService)
         string? name = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await projectsService.ListAsync(name, cancellationToken).ConfigureAwait(false);
+        var result = await projectsService.ListAsync(name, cancellationToken);
 
         return result.Map<Project[], IReadOnlyList<ProjectToolResult>>(
             onSuccess: projects => projects.Select(ToToolResult).ToArray(),

@@ -45,6 +45,45 @@ public sealed class CodeQueryServiceTests
     }
 
     [Fact]
+    public async Task Should_ReturnValidationFailure_When_QuestionExceedsMaxLength()
+    {
+        var tooLong = new string('a', CodeQueryService.MaxQuestionLength + 1);
+
+        var result = await _sut.QueryAsync(1, tooLong);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Fact]
+    public async Task Should_NotCheckProjectExistence_When_QuestionExceedsMaxLength()
+    {
+        var tooLong = new string('a', CodeQueryService.MaxQuestionLength + 1);
+
+        await _sut.QueryAsync(1, tooLong);
+
+        await _projectsRepository.DidNotReceive().ExistsAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_AcceptQuestionAtMaxLength_When_LengthIsExactlyTheLimit()
+    {
+        const long projectId = 1;
+        var atLimit = new string('a', CodeQueryService.MaxQuestionLength);
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+
+        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _embeddingGenerator.GenerateAsync(atLimit, Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.QueryAsync(projectId, atLimit);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Should_ReturnNotFoundFailure_When_ProjectDoesNotExist()
     {
         _projectsRepository.ExistsAsync(42, Arg.Any<CancellationToken>()).Returns(false);

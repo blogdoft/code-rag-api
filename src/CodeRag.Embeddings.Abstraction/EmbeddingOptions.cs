@@ -35,4 +35,11 @@ public sealed class EmbeddingOptions
 
     /// <summary>Request timeout, in seconds, for HTTP-based providers.</summary>
     public int TimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Maximum number of tokens fed into the model per request; longer input is truncated.
+    /// Only used by the Local provider - hosted providers enforce their own server-side limits.
+    /// Defaults to 512, the standard max sequence length for BERT-family models.
+    /// </summary>
+    public int MaxSequenceLength { get; set; } = 512;
 }

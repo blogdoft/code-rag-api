@@ -51,15 +51,20 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
         return rows.Select(r => r.ToResult());
     }
 
+    // SA1313 wants these lower-case, but positional record parameters are also the record's
+    // public properties - the standard .NET convention is PascalCase, matching the "AS Id",
+    // "AS SourceFile", ... aliases in the SQL above that Dapper binds them from.
+#pragma warning disable SA1313
     private sealed record CodeQueryResultRow(
-        long id,
-        string? sourceFile,
-        string kind,
-        string? typeName,
-        string? member,
-        string embeddingText,
-        double similarity)
+        long Id,
+        string? SourceFile,
+        string Kind,
+        string? TypeName,
+        string? Member,
+        string EmbeddingText,
+        double Similarity)
     {
-        public CodeQueryResult ToResult() => new(id, sourceFile, kind, typeName, member, embeddingText, similarity);
+        public CodeQueryResult ToResult() => new(Id, SourceFile, Kind, TypeName, Member, EmbeddingText, Similarity);
     }
+#pragma warning restore SA1313
 }

@@ -24,8 +24,8 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         var results = (await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10)).ToArray();
 
         results.Length.ShouldBe(2);
-        results[0].embeddingText.ShouldBe("close-doc");
-        results[0].similarity.ShouldBeGreaterThan(results[1].similarity);
+        results[0].EmbeddingText.ShouldBe("close-doc");
+        results[0].Similarity.ShouldBeGreaterThan(results[1].Similarity);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
 
         var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
 
-        results.ShouldAllBe(r => r.embeddingText == "own-doc");
+        results.ShouldAllBe(r => r.EmbeddingText == "own-doc");
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
 
         var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
 
-        results.ShouldAllBe(r => r.embeddingText == "matching-model-doc");
+        results.ShouldAllBe(r => r.EmbeddingText == "matching-model-doc");
     }
 
     [Fact]

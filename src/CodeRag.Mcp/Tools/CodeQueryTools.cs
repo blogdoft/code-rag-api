@@ -33,11 +33,11 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
     }
 
     private static CodeQueryToolResult ToToolResult(CodeQueryResult result) => new(
-        result.id,
-        result.sourceFile,
-        result.kind,
-        result.typeName,
-        result.member,
-        result.embeddingText,
-        result.similarity);
+        result.Id,
+        result.SourceFile,
+        result.Kind,
+        result.TypeName,
+        result.Member,
+        result.EmbeddingText,
+        result.Similarity);
 }

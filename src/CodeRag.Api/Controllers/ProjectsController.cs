@@ -28,5 +28,5 @@ public sealed class ProjectsController(IProjectsService projectsService) : Contr
             onFailure: failure => failure.ToActionResult(HttpContext));
     }
 
-    private static ProjectResponse ToResponse(Project project) => new(project.id, project.name, project.createdAt);
+    private static ProjectResponse ToResponse(Project project) => new(project.Id, project.Name, project.CreatedAt);
 }

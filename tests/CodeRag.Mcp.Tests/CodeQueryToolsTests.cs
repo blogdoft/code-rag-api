@@ -30,13 +30,13 @@ public sealed class CodeQueryToolsTests
         var result = await _sut.QueryProjectCodeAsync(projectId, question, CancellationToken.None);
 
         var item = result.ShouldHaveSingleItem();
-        item.id.ShouldBe(match.id);
-        item.sourceFile.ShouldBe(match.sourceFile);
-        item.kind.ShouldBe(match.kind);
-        item.typeName.ShouldBe(match.typeName);
-        item.member.ShouldBe(match.member);
-        item.embeddingText.ShouldBe(match.embeddingText);
-        item.similarity.ShouldBe(match.similarity);
+        item.Id.ShouldBe(match.Id);
+        item.SourceFile.ShouldBe(match.SourceFile);
+        item.Kind.ShouldBe(match.Kind);
+        item.TypeName.ShouldBe(match.TypeName);
+        item.Member.ShouldBe(match.Member);
+        item.EmbeddingText.ShouldBe(match.EmbeddingText);
+        item.Similarity.ShouldBe(match.Similarity);
     }
 
     [Fact]

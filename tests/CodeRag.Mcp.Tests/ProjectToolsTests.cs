@@ -27,9 +27,9 @@ public sealed class ProjectToolsTests
         var result = await _sut.ListProjectsAsync(null, CancellationToken.None);
 
         var item = result.ShouldHaveSingleItem();
-        item.id.ShouldBe(project.id);
-        item.name.ShouldBe(project.name);
-        item.createdAt.ShouldBe(project.createdAt);
+        item.Id.ShouldBe(project.Id);
+        item.Name.ShouldBe(project.Name);
+        item.CreatedAt.ShouldBe(project.CreatedAt);
     }
 
     [Fact]

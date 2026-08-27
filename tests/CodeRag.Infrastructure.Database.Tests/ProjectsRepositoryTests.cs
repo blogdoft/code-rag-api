@@ -21,8 +21,8 @@ public sealed class ProjectsRepositoryTests(PostgresFixture fixture)
 
         var result = await _repository.SearchAsync("SHOPPING-CART");
 
-        result.ShouldContain(p => p.name == matchingName);
-        result.ShouldNotContain(p => p.name == otherName);
+        result.ShouldContain(p => p.Name == matchingName);
+        result.ShouldNotContain(p => p.Name == otherName);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class ProjectsRepositoryTests(PostgresFixture fixture)
 
         var result = await _repository.SearchAsync(null);
 
-        result.ShouldContain(p => p.name == name);
+        result.ShouldContain(p => p.Name == name);
     }
 
     [Fact]

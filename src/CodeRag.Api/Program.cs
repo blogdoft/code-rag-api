@@ -67,6 +67,11 @@ try
 
     var app = builder.Build();
 
+    // Fail fast: resolving here forces provider validation (missing Provider/ApiKey/BaseUrl/
+    // LocalModelPath, unreadable local model files, ...) to crash startup instead of surfacing
+    // as a raw 500 on the first /code-queries request.
+    app.Services.GetRequiredService<IEmbeddingGenerator>();
+
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();

@@ -23,7 +23,7 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
                 HttpContext.Request.Path);
         }
 
-        var result = await codeQueryService.QueryAsync(id, request.question, cancellationToken);
+        var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken);
 
         return result.Map(
             onSuccess: results => (IActionResult)Ok(results.Select(ToResponse)),
@@ -31,11 +31,11 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
     }
 
     private static CodeQueryResultResponse ToResponse(CodeQueryResult result) => new(
-        result.id,
-        result.sourceFile,
-        result.kind,
-        result.typeName,
-        result.member,
-        result.embeddingText,
-        result.similarity);
+        result.Id,
+        result.SourceFile,
+        result.Kind,
+        result.TypeName,
+        result.Member,
+        result.EmbeddingText,
+        result.Similarity);
 }

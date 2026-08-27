@@ -33,10 +33,15 @@ public sealed class ProjectsRepository(NpgsqlDataSource dataSource) : IProjectsR
         return await connection.ExecuteScalarAsync<bool>(command);
     }
 
-    private sealed record ProjectRow(long id, string name, DateTime createdAt)
+    // SA1313 wants these lower-case, but positional record parameters are also the record's
+    // public properties - the standard .NET convention is PascalCase, matching the "AS Id",
+    // "AS Name", "AS CreatedAt" aliases in the SQL above that Dapper binds them from.
+#pragma warning disable SA1313
+    private sealed record ProjectRow(long Id, string Name, DateTime CreatedAt)
     {
         // projects.created_at is stored as timestamptz (always UTC); Npgsql returns it with
         // Kind=Unspecified, so it must be stamped explicitly to serialize with a "Z" suffix.
-        public Project ToProject() => new(id, name, DateTime.SpecifyKind(createdAt, DateTimeKind.Utc));
+        public Project ToProject() => new(Id, Name, DateTime.SpecifyKind(CreatedAt, DateTimeKind.Utc));
     }
+#pragma warning restore SA1313
 }

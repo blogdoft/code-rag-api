@@ -6,6 +6,7 @@ using CodeRag.Embeddings.Ollama;
 using CodeRag.Embeddings.OpenAI;
 using CodeRag.Infrastructure.Database;
 using Microsoft.AspNetCore.Mvc;
+using Scalar.AspNetCore;
 using Serilog;
 using System.Text.Json.Serialization;
 
@@ -75,6 +76,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
+        app.MapScalarApiReference();
     }
 
     app.UseSerilogRequestLogging();

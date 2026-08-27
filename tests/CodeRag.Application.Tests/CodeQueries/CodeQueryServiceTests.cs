@@ -75,7 +75,7 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
         _embeddingGenerator.GenerateAsync(atLimit, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>())
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
             .Returns([]);
 
         var result = await _sut.QueryAsync(projectId, atLimit);
@@ -115,7 +115,7 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
         _embeddingGenerator.GenerateAsync(question, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>())
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
             .Returns(expected);
 
         var result = await _sut.QueryAsync(projectId, question);
@@ -132,13 +132,55 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
         await _sut.QueryAsync(projectId, "some question");
 
         await _codeDocumentsRepository.Received(1).SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, Arg.Any<CancellationToken>());
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(CodeQueryService.MaxResultLimit + 1)]
+    public async Task Should_ReturnValidationFailure_When_LimitIsOutOfRange(int limit)
+    {
+        var result = await _sut.QueryAsync(1, "some question", limit: limit);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Theory]
+    [InlineData(-0.1)]
+    [InlineData(1.1)]
+    public async Task Should_ReturnValidationFailure_When_MinSimilarityIsOutOfRange(double minSimilarity)
+    {
+        var result = await _sut.QueryAsync(1, "some question", minSimilarity: minSimilarity);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Fact]
+    public async Task Should_PassExplicitLimitAndMinSimilarity_When_Provided()
+    {
+        const long projectId = 1;
+        const int limit = 25;
+        const double minSimilarity = 0.6;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _sut.QueryAsync(projectId, "some question", limit, minSimilarity);
+
+        await _codeDocumentsRepository.Received(1).SearchAsync(
+            projectId, "Ollama", "bge-m3", 3, embedding.values, limit, minSimilarity, Arg.Any<CancellationToken>());
     }
 
     private CodeQueryResult[] CreateResults(int count) =>

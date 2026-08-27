@@ -21,7 +21,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         await InsertCodeDocumentAsync(projectId, modelId, "close-doc", new Vector(new float[] { 1f, 0f, 0f }));
         await InsertCodeDocumentAsync(projectId, modelId, "far-doc", new Vector(new float[] { 0f, 1f, 0f }));
 
-        var results = (await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10)).ToArray();
+        var results = (await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10, null)).ToArray();
 
         results.Length.ShouldBe(2);
         results[0].EmbeddingText.ShouldBe("close-doc");
@@ -38,7 +38,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         await InsertCodeDocumentAsync(projectId, modelId, "own-doc", new Vector(new float[] { 1f, 0f, 0f }));
         await InsertCodeDocumentAsync(otherProjectId, modelId, "other-project-doc", new Vector(new float[] { 1f, 0f, 0f }));
 
-        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
+        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10, null);
 
         results.ShouldAllBe(r => r.EmbeddingText == "own-doc");
     }
@@ -54,7 +54,7 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         await InsertCodeDocumentAsync(projectId, modelId, "matching-model-doc", new Vector(new float[] { 1f, 0f, 0f }));
         await InsertCodeDocumentAsync(projectId, otherModelId, "other-model-doc", new Vector(new float[] { 1f, 0f, 0f }));
 
-        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10);
+        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10, null);
 
         results.ShouldAllBe(r => r.EmbeddingText == "matching-model-doc");
     }
@@ -70,7 +70,36 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
             await InsertCodeDocumentAsync(projectId, modelId, $"doc-{i}", new Vector(new float[] { 1f, 0f, 0f }));
         }
 
-        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 2);
+        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 2, null);
+
+        results.Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Should_ExcludeResultsBelowMinSimilarity_When_MinSimilarityIsSet()
+    {
+        var model = UniqueModelName();
+        var modelId = await InsertEmbeddingModelAsync("Ollama", model, 3);
+        var projectId = await InsertProjectAsync();
+        await InsertCodeDocumentAsync(projectId, modelId, "identical-doc", new Vector(new float[] { 1f, 0f, 0f }));
+        await InsertCodeDocumentAsync(projectId, modelId, "orthogonal-doc", new Vector(new float[] { 0f, 1f, 0f }));
+
+        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10, 0.5);
+
+        var result = results.ShouldHaveSingleItem();
+        result.EmbeddingText.ShouldBe("identical-doc");
+    }
+
+    [Fact]
+    public async Task Should_ReturnUnfilteredResults_When_MinSimilarityIsNull()
+    {
+        var model = UniqueModelName();
+        var modelId = await InsertEmbeddingModelAsync("Ollama", model, 3);
+        var projectId = await InsertProjectAsync();
+        await InsertCodeDocumentAsync(projectId, modelId, "identical-doc", new Vector(new float[] { 1f, 0f, 0f }));
+        await InsertCodeDocumentAsync(projectId, modelId, "orthogonal-doc", new Vector(new float[] { 0f, 1f, 0f }));
+
+        var results = await _repository.SearchAsync(projectId, "Ollama", model, 3, new float[] { 1f, 0f, 0f }, 10, null);
 
         results.Count().ShouldBe(2);
     }

@@ -23,9 +23,17 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
             "A natural language description of the code you are looking for, " +
             "e.g. 'where is the retry logic for failed payments?'.")]
         string question,
-        CancellationToken cancellationToken)
+        [Description(
+            "Maximum number of results to return, between 1 and 50. Defaults to 10 when omitted.")]
+        int? limit = null,
+        [Description(
+            "Minimum cosine similarity (0.0 to 1.0) a result must have to be included. Results below " +
+            "this are semantically unrelated noise rather than genuine matches - set e.g. 0.5 to filter " +
+            "them out. Omit to get the unfiltered top results regardless of relevance.")]
+        double? minSimilarity = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await codeQueryService.QueryAsync(projectId, question, cancellationToken);
+        var result = await codeQueryService.QueryAsync(projectId, question, limit, minSimilarity, cancellationToken);
 
         return result.Map(
             onSuccess: results => results.Select(ToToolResult),

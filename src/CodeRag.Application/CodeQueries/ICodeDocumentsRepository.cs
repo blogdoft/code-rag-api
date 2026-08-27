@@ -13,6 +13,10 @@ public interface ICodeDocumentsRepository
     /// <param name="embeddingDimensions">Dimensionality of <paramref name="queryEmbedding"/>.</param>
     /// <param name="queryEmbedding">Embedding to compare indexed documents against.</param>
     /// <param name="limit">Maximum number of results to return.</param>
+    /// <param name="minSimilarity">
+    /// When set, excludes documents whose cosine similarity to <paramref name="queryEmbedding"/>
+    /// falls below this value. Null returns the top <paramref name="limit"/> unfiltered.
+    /// </param>
     /// <param name="cancellationToken">Token used to cancel the search.</param>
     Task<IEnumerable<CodeQueryResult>> SearchAsync(
         long projectId,
@@ -21,5 +25,6 @@ public interface ICodeDocumentsRepository
         int embeddingDimensions,
         IReadOnlyList<float> queryEmbedding,
         int limit,
+        double? minSimilarity,
         CancellationToken cancellationToken = default);
 }

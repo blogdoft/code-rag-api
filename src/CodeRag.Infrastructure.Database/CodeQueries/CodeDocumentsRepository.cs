@@ -14,6 +14,7 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
         int embeddingDimensions,
         IReadOnlyList<float> queryEmbedding,
         int limit,
+        double? minSimilarity,
         CancellationToken cancellationToken = default)
     {
         const string sql = """
@@ -30,6 +31,7 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
               AND em.provider = @EmbeddingProvider
               AND em.model = @EmbeddingModel
               AND em.dimensions = @EmbeddingDimensions
+              AND (@MinSimilarity::float8 IS NULL OR (1 - (cd.embedding <=> @Embedding)) >= @MinSimilarity)
             ORDER BY cd.embedding <=> @Embedding
             LIMIT @Limit
             """;
@@ -42,6 +44,7 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
             EmbeddingDimensions = embeddingDimensions,
             Embedding = new Vector(queryEmbedding.ToArray()),
             Limit = limit,
+            MinSimilarity = minSimilarity,
         };
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);

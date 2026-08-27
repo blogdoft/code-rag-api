@@ -1,4 +1,5 @@
 using Bogus;
+using CodeRag.Application.CodeQueries;
 using Dapper;
 using Shouldly;
 using System.Net;
@@ -61,6 +62,19 @@ public sealed class CodeQueriesEndpointTests(ApiFixture fixture)
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/projects/{projectId}/code-queries",
             new { question = "   " });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_QuestionExceedsMaxLength()
+    {
+        var projectId = await InsertProjectAsync();
+        var tooLong = new string('a', CodeQueryService.MaxQuestionLength + 1);
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/projects/{projectId}/code-queries",
+            new { question = tooLong });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

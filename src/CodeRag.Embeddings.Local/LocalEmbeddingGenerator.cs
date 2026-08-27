@@ -17,6 +17,7 @@ public sealed class LocalEmbeddingGenerator : IEmbeddingGenerator, IDisposable
 {
     private readonly InferenceSession _session;
     private readonly BertTokenizer _tokenizer;
+    private readonly int _maxSequenceLength;
 
     public LocalEmbeddingGenerator(EmbeddingOptions options)
     {
@@ -44,6 +45,7 @@ public sealed class LocalEmbeddingGenerator : IEmbeddingGenerator, IDisposable
         Model = options.Model;
         Dimensions = options.Dimensions;
         Normalized = options.Normalized;
+        _maxSequenceLength = options.MaxSequenceLength;
     }
 
     public string Provider => "Local";
@@ -72,7 +74,16 @@ public sealed class LocalEmbeddingGenerator : IEmbeddingGenerator, IDisposable
 
     private EmbeddingVector Embed(string text)
     {
-        var tokenIds = _tokenizer.EncodeToIds(text, addSpecialTokens: true, considerPreTokenization: true);
+        // Truncated to _maxSequenceLength: the ONNX model has a fixed max position embedding
+        // (typically 512 for BERT-family models), and this generator embeds arbitrary-length
+        // source code, so unbounded input would throw a shape-mismatch during inference.
+        var tokenIds = _tokenizer.EncodeToIds(
+            text,
+            _maxSequenceLength,
+            addSpecialTokens: true,
+            out _,
+            out _,
+            considerPreTokenization: true);
         var sequenceLength = tokenIds.Count;
 
         var inputIds = new DenseTensor<long>([1, sequenceLength]);

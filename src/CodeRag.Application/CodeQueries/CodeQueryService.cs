@@ -12,6 +12,9 @@ public sealed class CodeQueryService(
     /// <summary>Matches the <c>LIMIT 10</c> used in the reference similarity query.</summary>
     public const int ResultLimit = 10;
 
+    /// <summary>Generous cap on a natural-language question; guards against embedding-cost abuse and token-limit overruns.</summary>
+    public const int MaxQuestionLength = 1000;
+
     public async Task<Result<IEnumerable<CodeQueryResult>>> QueryAsync(
         long projectId,
         string? question,
@@ -20,6 +23,11 @@ public sealed class CodeQueryService(
         if (string.IsNullOrWhiteSpace(question))
         {
             return CodeQueryFailures.QuestionRequired;
+        }
+
+        if (question.Length > MaxQuestionLength)
+        {
+            return CodeQueryFailures.QuestionTooLong(MaxQuestionLength);
         }
 
         var projectExists = await projectsRepository.ExistsAsync(projectId, cancellationToken);

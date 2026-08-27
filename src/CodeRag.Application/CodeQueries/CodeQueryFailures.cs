@@ -12,6 +12,10 @@ public static class CodeQueryFailures
         "400-question-required",
         "The 'question' field is required and must not be empty.");
 
+    public static Failure QuestionTooLong(int maxLength) => new(
+        "400-question-too-long",
+        $"The 'question' field must be at most {maxLength} characters long.");
+
     public static Failure ProjectNotFound(long projectId) => new(
         "404-project-not-found",
         $"No project exists with id {projectId}.");

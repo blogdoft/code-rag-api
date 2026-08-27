@@ -1,6 +1,6 @@
 namespace CodeRag.Mcp.Tools;
 
-/// <summary>Wire shape returned by <see cref="CodeQueryTools.QueryProjectCode"/> to MCP clients.</summary>
+/// <summary>Wire shape returned by <see cref="CodeQueryTools.QueryProjectCodeAsync"/> to MCP clients.</summary>
 public sealed record CodeQueryToolResult(
     long id,
     string? sourceFile,

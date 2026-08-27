@@ -5,7 +5,11 @@ namespace CodeRag.Embeddings.OpenAI;
 
 public sealed class OpenAIEmbeddingProviderFactory(IHttpClientFactory httpClientFactory) : IEmbeddingProviderFactory
 {
+    // Deliberate: this is only the fallback default - options.BaseUrl (below) already makes
+    // the endpoint configurable, e.g. to point at an OpenAI-compatible server instead.
+#pragma warning disable S1075
     private const string DefaultBaseUrl = "https://api.openai.com/v1/";
+#pragma warning restore S1075
 
     public string ProviderName => "OpenAI";
 

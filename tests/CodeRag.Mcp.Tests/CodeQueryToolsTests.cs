@@ -27,7 +27,7 @@ public sealed class CodeQueryToolsTests
             1, _faker.System.FilePath(), "function", _faker.Hacker.Noun(), _faker.Hacker.Verb(), _faker.Lorem.Sentence(), 0.9);
         _codeQueryService.QueryAsync(projectId, question, Arg.Any<CancellationToken>()).Returns(new[] { match });
 
-        var result = await _sut.QueryProjectCode(projectId, question, CancellationToken.None);
+        var result = await _sut.QueryProjectCodeAsync(projectId, question, CancellationToken.None);
 
         var item = result.ShouldHaveSingleItem();
         item.id.ShouldBe(match.id);
@@ -47,7 +47,7 @@ public sealed class CodeQueryToolsTests
             .Returns(CodeQueryFailures.ProjectNotFound(projectId));
 
         var exception = await Should.ThrowAsync<McpException>(
-            () => _sut.QueryProjectCode(projectId, "question", CancellationToken.None));
+            () => _sut.QueryProjectCodeAsync(projectId, "question", CancellationToken.None));
 
         exception.Message.ShouldBe(CodeQueryFailures.ProjectNotFound(projectId).Message);
     }
@@ -58,6 +58,6 @@ public sealed class CodeQueryToolsTests
         _codeQueryService.QueryAsync(1, "   ", Arg.Any<CancellationToken>())
             .Returns(CodeQueryFailures.QuestionRequired);
 
-        await Should.ThrowAsync<McpException>(() => _sut.QueryProjectCode(1, "   ", CancellationToken.None));
+        await Should.ThrowAsync<McpException>(() => _sut.QueryProjectCodeAsync(1, "   ", CancellationToken.None));
     }
 }

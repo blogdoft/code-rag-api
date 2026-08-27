@@ -18,6 +18,8 @@ public interface IEmbeddingGenerator
     /// <summary>
     /// Generates an embedding for the given text.
     /// </summary>
+    /// <param name="text">Text to embed.</param>
+    /// <param name="cancellationToken">Token used to cancel the generation.</param>
     /// <exception cref="EmbeddingGenerationException">
     /// The provider failed to generate an embedding (unreachable service, malformed response, etc.).
     /// </exception>

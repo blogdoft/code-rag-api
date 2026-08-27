@@ -72,6 +72,43 @@ public sealed class LocalEmbeddingGenerator : IEmbeddingGenerator, IDisposable
         }
     }
 
+    public void Dispose() => _session.Dispose();
+
+    private static float[] MeanPool(Tensor<float> lastHiddenState, int sequenceLength)
+    {
+        var hiddenSize = lastHiddenState.Dimensions[2];
+        var pooled = new float[hiddenSize];
+
+        for (var i = 0; i < sequenceLength; i++)
+        {
+            for (var h = 0; h < hiddenSize; h++)
+            {
+                pooled[h] += lastHiddenState[0, i, h];
+            }
+        }
+
+        for (var h = 0; h < hiddenSize; h++)
+        {
+            pooled[h] /= sequenceLength;
+        }
+
+        return pooled;
+    }
+
+    private static void NormalizeInPlace(float[] vector)
+    {
+        var norm = MathF.Sqrt(vector.Sum(v => v * v));
+        if (norm <= float.Epsilon)
+        {
+            return;
+        }
+
+        for (var i = 0; i < vector.Length; i++)
+        {
+            vector[i] /= norm;
+        }
+    }
+
     private EmbeddingVector Embed(string text)
     {
         // Truncated to _maxSequenceLength: the ONNX model has a fixed max position embedding
@@ -116,41 +153,4 @@ public sealed class LocalEmbeddingGenerator : IEmbeddingGenerator, IDisposable
 
         return new EmbeddingVector(pooled);
     }
-
-    private static float[] MeanPool(Tensor<float> lastHiddenState, int sequenceLength)
-    {
-        var hiddenSize = lastHiddenState.Dimensions[2];
-        var pooled = new float[hiddenSize];
-
-        for (var i = 0; i < sequenceLength; i++)
-        {
-            for (var h = 0; h < hiddenSize; h++)
-            {
-                pooled[h] += lastHiddenState[0, i, h];
-            }
-        }
-
-        for (var h = 0; h < hiddenSize; h++)
-        {
-            pooled[h] /= sequenceLength;
-        }
-
-        return pooled;
-    }
-
-    private static void NormalizeInPlace(float[] vector)
-    {
-        var norm = MathF.Sqrt(vector.Sum(v => v * v));
-        if (norm <= float.Epsilon)
-        {
-            return;
-        }
-
-        for (var i = 0; i < vector.Length; i++)
-        {
-            vector[i] /= norm;
-        }
-    }
-
-    public void Dispose() => _session.Dispose();
 }

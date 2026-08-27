@@ -26,10 +26,10 @@ public sealed class ProjectToolsTests
 
         var result = await _sut.ListProjects(null, CancellationToken.None);
 
-        result.ShouldHaveSingleItem();
-        result[0].Id.ShouldBe(project.Id);
-        result[0].Name.ShouldBe(project.Name);
-        result[0].CreatedAt.ShouldBe(project.CreatedAt);
+        var item = result.ShouldHaveSingleItem();
+        item.id.ShouldBe(project.id);
+        item.name.ShouldBe(project.name);
+        item.createdAt.ShouldBe(project.createdAt);
     }
 
     [Fact]
@@ -46,9 +46,9 @@ public sealed class ProjectToolsTests
     [Fact]
     public async Task Should_ThrowMcpException_When_ServiceReturnsFailure()
     {
-        _projectsService.ListAsync("", Arg.Any<CancellationToken>()).Returns(ProjectFailures.NameFilterEmpty);
+        _projectsService.ListAsync(string.Empty, Arg.Any<CancellationToken>()).Returns(ProjectFailures.NameFilterEmpty);
 
-        var exception = await Should.ThrowAsync<McpException>(() => _sut.ListProjects("", CancellationToken.None));
+        var exception = await Should.ThrowAsync<McpException>(() => _sut.ListProjects(string.Empty, CancellationToken.None));
 
         exception.Message.ShouldBe(ProjectFailures.NameFilterEmpty.Message);
     }

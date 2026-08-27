@@ -7,7 +7,7 @@ namespace CodeRag.Infrastructure.Database.CodeQueries;
 
 public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICodeDocumentsRepository
 {
-    public async Task<IReadOnlyList<CodeQueryResult>> SearchAsync(
+    public async Task<IEnumerable<CodeQueryResult>> SearchAsync(
         long projectId,
         string embeddingProvider,
         string embeddingModel,
@@ -48,18 +48,18 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
         var command = new CommandDefinition(sql, parameters, cancellationToken: cancellationToken);
         var rows = await connection.QueryAsync<CodeQueryResultRow>(command);
 
-        return rows.Select(r => r.ToResult()).ToArray();
+        return rows.Select(r => r.ToResult());
     }
 
     private sealed record CodeQueryResultRow(
-        long Id,
-        string? SourceFile,
-        string Kind,
-        string? TypeName,
-        string? Member,
-        string EmbeddingText,
-        double Similarity)
+        long id,
+        string? sourceFile,
+        string kind,
+        string? typeName,
+        string? member,
+        string embeddingText,
+        double similarity)
     {
-        public CodeQueryResult ToResult() => new(Id, SourceFile, Kind, TypeName, Member, EmbeddingText, Similarity);
+        public CodeQueryResult ToResult() => new(id, sourceFile, kind, typeName, member, embeddingText, similarity);
     }
 }

@@ -7,7 +7,7 @@ public sealed class ProjectsService(IProjectsRepository repository) : IProjectsS
     /// <summary>Matches the <c>maxLength</c> constraint on the <c>name</c> query parameter in the OpenAPI contract.</summary>
     public const int MaxNameFilterLength = 200;
 
-    public async Task<Result<Project[]>> ListAsync(
+    public async Task<Result<IEnumerable<Project>>> ListAsync(
         string? nameFilter,
         CancellationToken cancellationToken = default)
     {
@@ -25,6 +25,6 @@ public sealed class ProjectsService(IProjectsRepository repository) : IProjectsS
         }
 
         var projects = await repository.SearchAsync(nameFilter, cancellationToken);
-        return projects.ToArray();
+        return Result<IEnumerable<Project>>.FromSuccess(projects);
     }
 }

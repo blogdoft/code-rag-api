@@ -29,14 +29,14 @@ public sealed class CodeQueryToolsTests
 
         var result = await _sut.QueryProjectCode(projectId, question, CancellationToken.None);
 
-        result.ShouldHaveSingleItem();
-        result[0].Id.ShouldBe(match.Id);
-        result[0].SourceFile.ShouldBe(match.SourceFile);
-        result[0].Kind.ShouldBe(match.Kind);
-        result[0].TypeName.ShouldBe(match.TypeName);
-        result[0].Member.ShouldBe(match.Member);
-        result[0].EmbeddingText.ShouldBe(match.EmbeddingText);
-        result[0].Similarity.ShouldBe(match.Similarity);
+        var item = result.ShouldHaveSingleItem();
+        item.id.ShouldBe(match.id);
+        item.sourceFile.ShouldBe(match.sourceFile);
+        item.kind.ShouldBe(match.kind);
+        item.typeName.ShouldBe(match.typeName);
+        item.member.ShouldBe(match.member);
+        item.embeddingText.ShouldBe(match.embeddingText);
+        item.similarity.ShouldBe(match.similarity);
     }
 
     [Fact]

@@ -17,4 +17,9 @@ public sealed class EmbeddingGenerationException : Exception
         : base(message, innerException)
     {
     }
+
+    public EmbeddingGenerationException()
+        : base()
+    {
+    }
 }

@@ -1,5 +1,4 @@
 using CodeRag.Embeddings.Abstraction;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeRag.Embeddings.Ollama;
 

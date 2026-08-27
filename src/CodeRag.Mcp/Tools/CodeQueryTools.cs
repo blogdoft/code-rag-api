@@ -1,8 +1,8 @@
-using System.ComponentModel;
 using BlogDoFT.Libs.ResultPattern;
 using CodeRag.Application.CodeQueries;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
 
 namespace CodeRag.Mcp.Tools;
 
@@ -16,7 +16,7 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
         "documents (functions, methods, types, etc.) whose embeddings are most semantically similar, ordered " +
         "by descending similarity (1.0 = identical, values near or below 0 = unrelated). Use list_projects " +
         "first to find the projectId.")]
-    public async Task<IReadOnlyList<CodeQueryToolResult>> QueryProjectCode(
+    public async Task<IEnumerable<CodeQueryToolResult>> QueryProjectCode(
         [Description("Id of the project to search, from the list_projects tool.")]
         long projectId,
         [Description(
@@ -27,17 +27,17 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
     {
         var result = await codeQueryService.QueryAsync(projectId, question, cancellationToken);
 
-        return result.Map<CodeQueryResult[], IReadOnlyList<CodeQueryToolResult>>(
-            onSuccess: results => results.Select(ToToolResult).ToArray(),
+        return result.Map(
+            onSuccess: results => results.Select(ToToolResult),
             onFailure: failure => throw new McpException(failure.Message));
     }
 
     private static CodeQueryToolResult ToToolResult(CodeQueryResult result) => new(
-        result.Id,
-        result.SourceFile,
-        result.Kind,
-        result.TypeName,
-        result.Member,
-        result.EmbeddingText,
-        result.Similarity);
+        result.id,
+        result.sourceFile,
+        result.kind,
+        result.typeName,
+        result.member,
+        result.embeddingText,
+        result.similarity);
 }

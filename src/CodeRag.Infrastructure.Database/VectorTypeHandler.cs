@@ -1,7 +1,7 @@
-using System.Data;
-using System.Runtime.CompilerServices;
 using Dapper;
 using Pgvector;
+using System.Data;
+using System.Runtime.CompilerServices;
 
 namespace CodeRag.Infrastructure.Database;
 

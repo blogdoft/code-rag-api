@@ -5,10 +5,10 @@ namespace CodeRag.Application.CodeQueries;
 /// <c>public.code_documents</c>, annotated with its computed cosine similarity.
 /// </summary>
 public sealed record CodeQueryResult(
-    long Id,
-    string? SourceFile,
-    string Kind,
-    string? TypeName,
-    string? Member,
-    string EmbeddingText,
-    double Similarity);
+    long id,
+    string? sourceFile,
+    string kind,
+    string? typeName,
+    string? member,
+    string embeddingText,
+    double similarity);

@@ -9,6 +9,7 @@ public static class McpServerBuilderExtensions
     /// whichever transport the host has configured (HTTP, stdio, ...). Tools call straight into
     /// the Application layer - no HTTP round-trip to this API's own REST endpoints.
     /// </summary>
+    /// <param name="builder">MCP server builder to register the tools onto.</param>
     public static IMcpServerBuilder AddCodeRagTools(this IMcpServerBuilder builder)
     {
         builder.WithTools<ProjectTools>();

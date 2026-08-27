@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
     /// Registers the Postgres/Dapper-backed repositories. This API only reads from the schema -
     /// it never runs migrations, so the database and its tables must already exist.
     /// </summary>
+    /// <param name="services">Service collection to register into.</param>
     public static IServiceCollection AddDatabaseInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton(sp =>

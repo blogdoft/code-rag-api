@@ -92,4 +92,10 @@ finally
 /// <summary>Entry point marker so <c>WebApplicationFactory&lt;Program&gt;</c> can bootstrap this API in tests.</summary>
 public partial class Program
 {
+    // WebApplicationFactory<Program> only ever uses this type as a generic marker - which
+    // requires a non-static class - and never actually instantiates it, so a protected
+    // constructor satisfies Sonar's utility-class check without needing a public one.
+    protected Program()
+    {
+    }
 }

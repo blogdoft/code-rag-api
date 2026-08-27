@@ -11,7 +11,7 @@ namespace CodeRag.Api.Controllers;
 public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : ControllerBase
 {
     [HttpPost]
-    public async Task<IActionResult> Query(
+    public async Task<IActionResult> QueryAsync(
         string projectId,
         [FromBody] CodeQueryRequest request,
         CancellationToken cancellationToken)

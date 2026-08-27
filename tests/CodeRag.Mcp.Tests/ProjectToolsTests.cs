@@ -24,7 +24,7 @@ public sealed class ProjectToolsTests
         var project = new Project(1, _faker.Commerce.ProductName(), _faker.Date.PastOffset().UtcDateTime);
         _projectsService.ListAsync(null, Arg.Any<CancellationToken>()).Returns(new[] { project });
 
-        var result = await _sut.ListProjects(null, CancellationToken.None);
+        var result = await _sut.ListProjectsAsync(null, CancellationToken.None);
 
         var item = result.ShouldHaveSingleItem();
         item.id.ShouldBe(project.id);
@@ -38,7 +38,7 @@ public sealed class ProjectToolsTests
         const string filter = "cart";
         _projectsService.ListAsync(filter, Arg.Any<CancellationToken>()).Returns(Array.Empty<Project>());
 
-        await _sut.ListProjects(filter, CancellationToken.None);
+        await _sut.ListProjectsAsync(filter, CancellationToken.None);
 
         await _projectsService.Received(1).ListAsync(filter, Arg.Any<CancellationToken>());
     }
@@ -48,7 +48,7 @@ public sealed class ProjectToolsTests
     {
         _projectsService.ListAsync(string.Empty, Arg.Any<CancellationToken>()).Returns(ProjectFailures.NameFilterEmpty);
 
-        var exception = await Should.ThrowAsync<McpException>(() => _sut.ListProjects(string.Empty, CancellationToken.None));
+        var exception = await Should.ThrowAsync<McpException>(() => _sut.ListProjectsAsync(string.Empty, CancellationToken.None));
 
         exception.Message.ShouldBe(ProjectFailures.NameFilterEmpty.Message);
     }

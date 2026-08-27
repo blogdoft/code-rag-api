@@ -13,5 +13,6 @@ public interface IEmbeddingProviderFactory
     string ProviderName { get; }
 
     /// <summary>Builds the generator for this provider using the supplied options.</summary>
+    /// <param name="options">Configuration for the generator, bound from the "Embeddings" section.</param>
     IEmbeddingGenerator Create(EmbeddingOptions options);
 }

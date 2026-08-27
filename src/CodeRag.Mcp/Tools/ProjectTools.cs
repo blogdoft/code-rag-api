@@ -15,7 +15,7 @@ public sealed class ProjectTools(IProjectsService projectsService)
         "Lists the code projects that have been indexed and are available for semantic code research. " +
         "Optionally filter by a partial, case-insensitive match on the project name. Call this first to " +
         "discover the projectId required by the query_project_code tool.")]
-    public async Task<IEnumerable<ProjectToolResult>> ListProjects(
+    public async Task<IEnumerable<ProjectToolResult>> ListProjectsAsync(
         [Description(
             "Partial, case-insensitive filter on the project name (e.g. 'cart' matches 'shopping-cart-service'). " +
             "Omit to list every indexed project.")]

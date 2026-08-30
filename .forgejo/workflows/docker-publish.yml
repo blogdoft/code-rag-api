@@ -86,15 +86,32 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install kustomize
+        # The install script uses $GITHUB_TOKEN (if set) to authenticate against the real
+        # github.com API - but Forgejo injects its own GITHUB_TOKEN into every job's
+        # environment (for GitHub Actions compatibility), which github.com rejects. Clear it
+        # for this step only.
+        #
+        # This runner executes job steps directly on its own filesystem (no per-job
+        # container), so /tmp persists across runs - skip reinstalling if a previous run
+        # already put a binary there (the script refuses to overwrite one anyway).
+        env:
+          GITHUB_TOKEN: ""
         run: |
-          mkdir -p /tmp/kustomize-bin
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- /tmp/kustomize-bin
+          if [ ! -x /tmp/kustomize-bin/kustomize ]; then
+            mkdir -p /tmp/kustomize-bin
+            curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- /tmp/kustomize-bin
+          fi
           echo "/tmp/kustomize-bin" >> "$GITHUB_PATH"
 
       - name: Stamp image into manifests
         run: |
           cd .eng/k8s
           kustomize edit set image "code-rag-api=${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ needs.publish.outputs.deploy_tag }}"
+
+      # The runner's job steps execute directly in the (Alpine-based) runner image, which
+      # doesn't ship an SSH client.
+      - name: Install openssh-client
+        run: apk add --no-cache openssh-client
 
       # ARGO_DEPLOY_SSH_KEY is a repo secret: the private half of a deploy key with write
       # access added to sauron/argo-local-apps in Forgejo (Settings > Deploy keys, "Read and

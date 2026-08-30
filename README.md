@@ -116,7 +116,7 @@ test, and publish the Docker image on push to `main` and on version tags (adjust
 variables/secrets in the Forgejo workflow to match your instance).
 
 On every push to `main`, the Forgejo workflow also stamps the freshly published image tag into
-the manifests under [`.eng/k8s`](./.eng/k8s) and syncs them into `apps/code-rag-api/` on the
+the manifests under [`.eng/k8s`](./.eng/k8s) and syncs them into `manifests/code-rag-api/` on the
 `argo-local-apps` app-of-apps repo, which ArgoCD watches for the local k8s cluster. Requires an
 `ARGO_DEPLOY_SSH_KEY` repo secret (a write-access deploy key on `argo-local-apps`), set up as
 follows:

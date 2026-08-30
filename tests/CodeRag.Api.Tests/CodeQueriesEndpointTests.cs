@@ -95,8 +95,9 @@ public sealed class CodeQueriesEndpointTests(ApiFixture fixture)
     [Fact]
     public async Task Should_ReturnServerErrorProblemDetails_When_EmbeddingProviderIsUnreachable()
     {
-        // No Ollama server is running at the configured BaseUrl, so embedding generation throws
-        // and should surface as the 500 shape from UnhandledExceptionFilter, not a raw 500.
+        // The configured BaseUrl is unroutable (see CustomWebApplicationFactory), so embedding
+        // generation throws and should surface as the 500 shape from UnhandledExceptionFilter,
+        // not a raw 500.
         var projectId = await InsertProjectAsync();
 
         var response = await _client.PostAsJsonAsync(

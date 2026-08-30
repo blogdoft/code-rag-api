@@ -114,3 +114,28 @@ required to run those two projects.
 `.github/workflows/docker-publish.yml` and `.forgejo/workflows/docker-publish.yml` both build,
 test, and publish the Docker image on push to `main` and on version tags (adjust the registry
 variables/secrets in the Forgejo workflow to match your instance).
+
+On every push to `main`, the Forgejo workflow also stamps the freshly published image tag into
+the manifests under [`.eng/k8s`](./.eng/k8s) and syncs them into `apps/code-rag-api/` on the
+`argo-local-apps` app-of-apps repo, which ArgoCD watches for the local k8s cluster. Requires an
+`ARGO_DEPLOY_SSH_KEY` repo secret (a write-access deploy key on `argo-local-apps`), set up as
+follows:
+
+1. Generate a dedicated ed25519 keypair (no passphrase — CI can't type one):
+
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C "code-rag-ci@argo-local-apps" -f argo_deploy_key
+   ```
+
+2. In `sauron/argo-local-apps` on Forgejo, go to **Settings → Deploy Keys → Add Deploy Key**,
+   paste the contents of `argo_deploy_key.pub`, and check **"Allow Write Access"** (deploy keys
+   are read-only by default; without write access the workflow's `git push` fails).
+3. In `code-rag` (this repo) on Forgejo, go to **Settings → Actions → Secrets → Add Secret**,
+   name it `ARGO_DEPLOY_SSH_KEY`, and paste the contents of `argo_deploy_key` (the private key,
+   including the `BEGIN`/`END` lines).
+4. Delete both local key files (`argo_deploy_key`, `argo_deploy_key.pub`) — only the copies in
+   Forgejo are needed.
+
+The Deployment also expects a `code-rag-secrets` Secret in the target namespace/cluster with a
+`connection-string` key (the Npgsql connection string) — it isn't managed in this repo and must
+be created once, out of band, before the app can start.

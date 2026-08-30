@@ -1,0 +1,19 @@
+# This directory is not applied directly - docker-publish.yml stamps the real image
+# name/tag onto it (kustomize edit set image) and copies the result into
+# apps/code-rag-api/ in the argo-local-apps GitOps repo on every push to main. ArgoCD then
+# renders it with kustomize from there.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: code-rag-api
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - ingress.yaml
+
+images:
+  - name: code-rag-api
+    newName: REGISTRY_PLACEHOLDER/code-rag-api
+    newTag: unset

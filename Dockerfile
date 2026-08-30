@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-COPY CodeRag.sln ./
+COPY CodeRag.sln stylecop.json ./
 COPY src/CodeRag.Api/CodeRag.Api.csproj src/CodeRag.Api/
 COPY src/CodeRag.Application/CodeRag.Application.csproj src/CodeRag.Application/
 COPY src/CodeRag.Embeddings.Abstraction/CodeRag.Embeddings.Abstraction.csproj src/CodeRag.Embeddings.Abstraction/

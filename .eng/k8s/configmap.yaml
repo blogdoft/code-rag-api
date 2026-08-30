@@ -1,0 +1,15 @@
+# Non-secret settings only - see src/CodeRag.Api/appsettings.json for defaults.
+# ConnectionStrings__Database is injected separately from the code-rag-secrets Secret
+# (see deployment.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: code-rag-config
+data:
+  ASPNETCORE_URLS: "http://+:8080"
+  Embeddings__Provider: "Ollama"
+  Embeddings__Model: "bge-m3"
+  Embeddings__BaseUrl: "http://192.168.1.212:11434"
+  Embeddings__Dimensions: "1024"
+  Embeddings__Normalized: "true"
+  Embeddings__TimeoutSeconds: "30"

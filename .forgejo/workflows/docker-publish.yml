@@ -16,7 +16,14 @@ jobs:
     container:
       image: mcr.microsoft.com/dotnet/sdk:9.0
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout is a Node action; the dotnet SDK image doesn't ship Node, and the
+      # Forgejo runner doesn't inject one into custom job containers, so install it first
+      # (fails otherwise with "exec: node: executable file not found in $PATH").
+      - name: Install Node.js
+        run: apt-get update && apt-get install -y --no-install-recommends nodejs
+
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Restore
         run: dotnet restore CodeRag.sln
@@ -39,17 +46,89 @@ jobs:
       - name: Log in to the container registry
         run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ vars.REGISTRY }}" -u "${{ vars.REGISTRY_USERNAME }}" --password-stdin
 
+      # `tag` is the human-facing tag (latest / the pushed version tag). `deploy_tag` is
+      # always unique per commit - the update-gitops job needs a tag that changes on every
+      # push, otherwise the manifest synced to argo-local-apps never diffs and ArgoCD has
+      # nothing to sync.
       - name: Determine image tag
         id: tag
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "deploy_tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "deploy_tag=main-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build image
-        run: docker build -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}" -f Dockerfile .
+        run: |
+          docker build \
+            -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}" \
+            -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.deploy_tag }}" \
+            -f Dockerfile .
 
       - name: Push image
-        run: docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"
+        run: |
+          docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"
+          docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.deploy_tag }}"
+
+    outputs:
+      deploy_tag: ${{ steps.tag.outputs.deploy_tag }}
+
+  update-gitops:
+    needs: publish
+    # Only main pushes update the app-of-apps repo - version tags are published but not
+    # auto-deployed.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          mkdir -p /tmp/kustomize-bin
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- /tmp/kustomize-bin
+          echo "/tmp/kustomize-bin" >> "$GITHUB_PATH"
+
+      - name: Stamp image into manifests
+        run: |
+          cd .eng/k8s
+          kustomize edit set image "code-rag-api=${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ needs.publish.outputs.deploy_tag }}"
+
+      # ARGO_DEPLOY_SSH_KEY is a repo secret: the private half of a deploy key with write
+      # access added to sauron/argo-local-apps in Forgejo (Settings > Deploy keys, "Read and
+      # Write" enabled). ssh-keyscan trusts the host on first connect - argo-local-apps and
+      # this runner are on the same private network, so TOFU is acceptable here.
+      - name: Configure SSH
+        run: |
+          echo "${{ secrets.ARGO_DEPLOY_SSH_KEY }}" > "${{ github.workspace }}/.ssh-key"
+          chmod 600 "${{ github.workspace }}/.ssh-key"
+          ssh-keyscan -p 2222 forgejo.home.arpa > "${{ github.workspace }}/.ssh-known-hosts" 2>/dev/null
+
+      - name: Sync manifests to argo-local-apps
+        env:
+          GIT_SSH_COMMAND: ssh -i ${{ github.workspace }}/.ssh-key -o UserKnownHostsFile=${{ github.workspace }}/.ssh-known-hosts
+        run: |
+          WORKDIR=$(mktemp -d)
+          git clone --depth 1 ssh://git@forgejo.home.arpa:2222/sauron/argo-local-apps.git "$WORKDIR"
+
+          rm -rf "$WORKDIR/apps/code-rag-api"
+          mkdir -p "$WORKDIR/apps/code-rag-api"
+          cp -r .eng/k8s/. "$WORKDIR/apps/code-rag-api/"
+
+          cd "$WORKDIR"
+          git config user.name "code-rag-ci"
+          git config user.email "ci@code-rag.local"
+          git add apps/code-rag-api
+
+          if git diff --cached --quiet; then
+            echo "No manifest changes, skipping commit."
+          else
+            git commit -m "chore(code-rag): deploy ${{ needs.publish.outputs.deploy_tag }}"
+            git push origin main
+          fi
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f "${{ github.workspace }}/.ssh-key" "${{ github.workspace }}/.ssh-known-hosts"

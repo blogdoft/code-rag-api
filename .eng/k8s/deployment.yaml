@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-rag-api
+  labels:
+    app: code-rag-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-rag-api
+  template:
+    metadata:
+      labels:
+        app: code-rag-api
+    spec:
+      containers:
+        - name: code-rag-api
+          # image name/tag is stamped by the docker-publish.yml workflow (kustomize edit set
+          # image) before this directory is synced to argo-local-apps - the value here is
+          # never actually deployed as-is.
+          image: code-rag-api
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: code-rag-config
+          env:
+            # code-rag-secrets is not managed in this repo - create it once in the target
+            # namespace/cluster (or via argo-local-apps' own secret tooling) with a
+            # "connection-string" key holding the Npgsql connection string.
+            - name: ConnectionStrings__Database
+              valueFrom:
+                secretKeyRef:
+                  name: code-rag-secrets
+                  key: connection-string
+          readinessProbe:
+            httpGet:
+              path: /api/v1/projects
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

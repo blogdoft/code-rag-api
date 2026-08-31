@@ -11,6 +11,10 @@ namespace CodeRag.Api.Controllers;
 public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : ControllerBase
 {
     [HttpPost]
+    [ProducesResponseType<IEnumerable<CodeQueryResultResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ServerErrorProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
     public async Task<IActionResult> QueryAsync(
         string projectId,
         [FromBody] CodeQueryRequest request,

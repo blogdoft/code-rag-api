@@ -11,6 +11,9 @@ namespace CodeRag.Api.Controllers;
 public sealed class ProjectsController(IProjectsService projectsService) : ControllerBase
 {
     [HttpGet]
+    [ProducesResponseType<IEnumerable<ProjectResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ServerErrorProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
     public async Task<IActionResult> ListAsync(CancellationToken cancellationToken)
     {
         // Read the raw query value instead of a bound [FromQuery] parameter: MVC's default

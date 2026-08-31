@@ -7,6 +7,7 @@ using CodeRag.Embeddings.OpenAI;
 using CodeRag.Infrastructure.Database;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Text.Json.Serialization;
@@ -29,12 +30,46 @@ try
         .Enrich.FromLogContext());
 
     builder.Services
-        .AddControllers(options => options.Filters.Add<UnhandledExceptionFilter>())
+        .AddControllers(options =>
+        {
+            options.Filters.Add<UnhandledExceptionFilter>();
+
+            // The API exclusively accepts and returns application/json (per the OpenAPI
+            // contract). A controller-level [Consumes]/[Produces] attribute achieves the same
+            // thing but also leaks "application/json" into every explicit ProducesResponseType
+            // content type declared on the action (e.g. turning the 400/500 responses'
+            // "application/problem+json" into two listed content types, and giving the
+            // no-body 404 a phantom one) - registering it as a global filter instead avoids that.
+            options.Filters.Add(new ConsumesAttribute("application/json"));
+            options.Filters.Add(new ProducesAttribute("application/json"));
+        })
         .AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower;
             options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
         });
+
+    // The System.Text.Json formatters otherwise also advertise text/json and the
+    // application/*+json structured-syntax wildcard as acceptable, which both leaks into the
+    // generated OpenAPI document's requestBody/response content types and lets callers negotiate
+    // content types the contract doesn't actually support. PostConfigure runs after AddControllers
+    // has populated the formatter list, regardless of registration order.
+    builder.Services.PostConfigure<MvcOptions>(options =>
+    {
+        foreach (var supportedMediaTypes in options.InputFormatters.OfType<SystemTextJsonInputFormatter>()
+            .Select(formatter => formatter.SupportedMediaTypes))
+        {
+            supportedMediaTypes.Clear();
+            supportedMediaTypes.Add("application/json");
+        }
+
+        foreach (var supportedMediaTypes in options.OutputFormatters.OfType<SystemTextJsonOutputFormatter>()
+            .Select(formatter => formatter.SupportedMediaTypes))
+        {
+            supportedMediaTypes.Clear();
+            supportedMediaTypes.Add("application/json");
+        }
+    });
 
     builder.Services.Configure<ApiBehaviorOptions>(options =>
     {

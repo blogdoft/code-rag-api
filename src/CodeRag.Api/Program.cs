@@ -22,6 +22,8 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
+    const string FrontendCorsPolicy = "Frontend";
+
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
@@ -86,6 +88,16 @@ try
 
     builder.Services.AddOpenApi();
 
+    builder.Services.AddCors(options =>
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+        options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .WithMethods("GET", "POST")
+            .AllowAnyHeader());
+    });
+
     // Kubernetes sets this on every pod automatically, so it doubles as a reliable "are we
     // running in a cluster" flag without needing extra config wiring.
     var isRunningInKubernetes = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") is not null;
@@ -140,6 +152,7 @@ try
 
     app.UseSerilogRequestLogging();
     app.UseHttpsRedirection();
+    app.UseCors(FrontendCorsPolicy);
     app.UseAuthorization();
     app.MapControllers();
     app.MapMcp("/mcp");

@@ -11,7 +11,7 @@ namespace CodeRag.Api.Controllers;
 public sealed class ProjectsController(IProjectsService projectsService) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType<IEnumerable<ProjectResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IEnumerable<ProjectResponse>>(StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ServerErrorProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
     public async Task<IActionResult> ListAsync(CancellationToken cancellationToken)

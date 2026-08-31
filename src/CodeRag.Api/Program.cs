@@ -34,14 +34,15 @@ try
         {
             options.Filters.Add<UnhandledExceptionFilter>();
 
-            // The API exclusively accepts and returns application/json (per the OpenAPI
-            // contract). A controller-level [Consumes]/[Produces] attribute achieves the same
-            // thing but also leaks "application/json" into every explicit ProducesResponseType
-            // content type declared on the action (e.g. turning the 400/500 responses'
-            // "application/problem+json" into two listed content types, and giving the
-            // no-body 404 a phantom one) - registering it as a global filter instead avoids that.
+            // Request bodies are always application/json (per the OpenAPI contract) - restrict
+            // content negotiation accordingly. There is no equivalent global filter for
+            // responses: a global/controller-level [Produces] unconditionally overwrites
+            // ObjectResult.ContentTypes - including the "application/problem+json" that
+            // ProblemResults.Build/UnhandledExceptionFilter set explicitly on error responses -
+            // silently downgrading them to application/json (or 406, depending on the Accept
+            // header). Each action instead declares its own 200 content type directly via
+            // ProducesResponseType, which only affects that specific status code.
             options.Filters.Add(new ConsumesAttribute("application/json"));
-            options.Filters.Add(new ProducesAttribute("application/json"));
         })
         .AddJsonOptions(options =>
         {
@@ -49,21 +50,19 @@ try
             options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
         });
 
-    // The System.Text.Json formatters otherwise also advertise text/json and the
-    // application/*+json structured-syntax wildcard as acceptable, which both leaks into the
-    // generated OpenAPI document's requestBody/response content types and lets callers negotiate
-    // content types the contract doesn't actually support. PostConfigure runs after AddControllers
-    // has populated the formatter list, regardless of registration order.
+    // Request bodies are always plain application/json - the JSON input formatter otherwise
+    // also advertises text/json and the application/*+json structured-syntax wildcard as
+    // acceptable, which leaks into the generated OpenAPI document's requestBody content types.
+    // The output formatter is deliberately left untouched: ProblemResults.Build/
+    // UnhandledExceptionFilter rely on its application/*+json wildcard support to actually
+    // serve application/problem+json error responses - trimming it there breaks that
+    // negotiation (content type silently downgrades to application/json, or 406). Response docs
+    // are kept clean per-action instead, via the explicit content type on each
+    // ProducesResponseType attribute. PostConfigure runs after AddControllers has populated the
+    // formatter list, regardless of registration order.
     builder.Services.PostConfigure<MvcOptions>(options =>
     {
         foreach (var supportedMediaTypes in options.InputFormatters.OfType<SystemTextJsonInputFormatter>()
-            .Select(formatter => formatter.SupportedMediaTypes))
-        {
-            supportedMediaTypes.Clear();
-            supportedMediaTypes.Add("application/json");
-        }
-
-        foreach (var supportedMediaTypes in options.OutputFormatters.OfType<SystemTextJsonOutputFormatter>()
             .Select(formatter => formatter.SupportedMediaTypes))
         {
             supportedMediaTypes.Clear();

@@ -5,6 +5,7 @@ using CodeRag.Embeddings.Local;
 using CodeRag.Embeddings.Ollama;
 using CodeRag.Embeddings.OpenAI;
 using CodeRag.Infrastructure.Database;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
 using Serilog;
@@ -51,6 +52,25 @@ try
 
     builder.Services.AddOpenApi();
 
+    // Kubernetes sets this on every pod automatically, so it doubles as a reliable "are we
+    // running in a cluster" flag without needing extra config wiring.
+    var isRunningInKubernetes = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") is not null;
+
+    if (isRunningInKubernetes)
+    {
+        // Traefik terminates TLS and forwards to the pod as plain HTTP, so without this the
+        // app thinks every request is http:// - which leaks into the OpenAPI document's server
+        // URL and makes Scalar send its "try it" requests to http:// instead of https://.
+        // The proxy's address is a cluster-internal pod IP that changes on every restart, so
+        // there's no fixed address to pin as a known proxy - trust the whole path instead.
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+    }
+
     builder.Services.AddApplication();
     builder.Services.AddDatabaseInfrastructure();
 
@@ -72,6 +92,11 @@ try
     // LocalModelPath, unreadable local model files, ...) to crash startup instead of surfacing
     // as a raw 500 on the first /code-queries request.
     app.Services.GetRequiredService<IEmbeddingGenerator>();
+
+    if (isRunningInKubernetes)
+    {
+        app.UseForwardedHeaders();
+    }
 
     if (app.Environment.IsDevelopment())
     {

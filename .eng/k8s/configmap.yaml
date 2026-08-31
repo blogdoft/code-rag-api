@@ -7,6 +7,7 @@ metadata:
   name: code-rag-config
 data:
   ASPNETCORE_URLS: "http://+:8080"
+  ASPNETCORE_ENVIRONMENT: "Development"
   Embeddings__Provider: "Ollama"
   Embeddings__Model: "bge-m3"
   Embeddings__BaseUrl: "http://192.168.1.212:11434"

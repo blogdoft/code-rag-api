@@ -7,6 +7,10 @@ metadata:
   name: code-rag-api
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - code-rag-api.home.arpa
+      secretName: wildcard-tls
   rules:
     - host: code-rag-api.home.arpa
       http:

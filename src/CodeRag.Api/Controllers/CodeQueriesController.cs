@@ -20,11 +20,9 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
         [FromBody] CodeQueryRequest request,
         CancellationToken cancellationToken)
     {
-        if (!long.TryParse(projectId, out var id) || id < 1)
+        if (!RouteId.TryParsePositive(projectId, "projectId", HttpContext.Request.Path, out var id, out var problem))
         {
-            return ProblemResults.BadRequest(
-                $"The 'projectId' route parameter must be a positive integer; received '{projectId}'.",
-                HttpContext.Request.Path);
+            return problem!;
         }
 
         var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken: cancellationToken);

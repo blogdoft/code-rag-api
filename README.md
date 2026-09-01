@@ -51,6 +51,10 @@ dotnet run --project src/CodeRag.Api
 ## REST API
 
 - `GET /api/v1/projects?name=` — list/search indexed projects.
+- `POST /api/v1/projects` — create a project.
+- `GET /api/v1/projects/{projectId}` — get a project by id.
+- `PUT /api/v1/projects/{projectId}` — rename a project.
+- `DELETE /api/v1/projects/{projectId}` — delete a project (fails if it still has indexed code documents).
 - `POST /api/v1/projects/{projectId}/code-queries` — natural-language search over a project's indexed code.
 
 ## MCP

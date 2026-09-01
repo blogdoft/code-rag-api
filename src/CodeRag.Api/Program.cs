@@ -94,7 +94,7 @@ try
 
         options.AddPolicy(FrontendCorsPolicy, policy => policy
             .WithOrigins(allowedOrigins)
-            .WithMethods("GET", "POST")
+            .WithMethods("GET", "POST", "PUT", "DELETE")
             .AllowAnyHeader());
     });
 

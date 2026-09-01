@@ -3,7 +3,8 @@ info:
   title: Code RAG API
   description: >
     API for managing indexed code projects and querying their vectorized
-    source code using natural language. The service stores per-project
+    source code using natural language. Projects support full CRUD via
+    `POST`/`GET`/`PUT`/`DELETE /projects`. The service stores per-project
     code documents (functions, types, members, etc.) along with vector
     embeddings, and allows retrieving the most semantically similar pieces
     of code for a given natural language question via a pgvector-backed
@@ -23,7 +24,9 @@ servers:
 
 tags:
   - name: Projects
-    description: Operations for discovering indexed projects.
+    description: >
+      CRUD operations for registering, discovering, renaming, and removing
+      indexed projects.
   - name: Code Query
     description: Operations for querying indexed source code using natural language.
 
@@ -38,7 +41,8 @@ paths:
         Returns all registered projects. Optionally filter the results by
         project name using a partial, case-insensitive match against the
         `name` field. Use the returned `id` values as the `projectId` path
-        parameter when querying code via the `/projects/{projectId}/code-queries`
+        parameter when fetching, renaming, or deleting a specific project,
+        or when querying code via the `/projects/{projectId}/code-queries`
         endpoint.
 
 
@@ -78,9 +82,13 @@ paths:
                   value:
                     - id: 1
                       name: shopping-cart-service
+                      git_url: "https://github.com/example-org/shopping-cart-service.git"
+                      git_raw_url: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
                       created_at: "2026-01-15T10:32:00Z"
                     - id: 2
                       name: payments-gateway
+                      git_url: null
+                      git_raw_url: null
                       created_at: "2026-02-03T08:12:45Z"
                 noMatches:
                   summary: No projects matched the filter
@@ -115,6 +123,377 @@ paths:
                 status: 500
                 detail: "An unexpected error occurred while listing projects."
                 instance: /api/v1/projects
+                exception:
+                  exceptionType: Npgsql.NpgsqlException
+                  message: "Connection refused"
+                  stackTrace: "at Npgsql.NpgsqlConnection.Open() ..."
+
+    post:
+      tags:
+        - Projects
+      operationId: createProject
+      summary: Create a project
+      description: >
+        Registers a new project so its source code can later be indexed and
+        searched. The project's `name` must be unique across all projects
+        (case-sensitive, exact match); creating a project with a name that
+        already exists returns a `409`. `git_url` and `git_raw_url` are
+        optional and, when provided, are validated but not otherwise
+        checked for reachability.
+
+
+        On success, the response includes a `Location` header pointing to
+        the new project's `GET /projects/{projectId}` URL, per the standard
+        HTTP convention for `201 Created` responses.
+      requestBody:
+        required: true
+        description: The new project's name and, optionally, its git repository details.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectRequest"
+            examples:
+              default:
+                summary: With git repository details
+                value:
+                  name: shopping-cart-service
+                  git_url: "https://github.com/example-org/shopping-cart-service.git"
+                  git_raw_url: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
+              nameOnly:
+                summary: Without git repository details
+                value:
+                  name: shopping-cart-service
+      responses:
+        "201":
+          description: The project was created.
+          headers:
+            Location:
+              description: URL of the newly created project (`GET /projects/{projectId}`).
+              schema:
+                type: string
+                format: uri-reference
+                example: /api/v1/projects/3
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+              example:
+                id: 3
+                name: shopping-cart-service
+                git_url: "https://github.com/example-org/shopping-cart-service.git"
+                git_raw_url: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
+                created_at: "2026-01-15T10:32:00Z"
+        "400":
+          description: >
+            The request body is missing or malformed, the `name` field is
+            missing/empty/blank, `name` exceeds the maximum allowed length,
+            or `git_url`/`git_raw_url` was provided but is blank or exceeds
+            the maximum allowed length. This is the only client-error
+            condition other than `409` under which this endpoint fails.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                nameRequired:
+                  summary: name is missing or blank
+                  value:
+                    type: https://httpstatuses.io/400
+                    title: Bad Request
+                    status: 400
+                    detail: "The 'name' field is required and must not be empty."
+                    instance: /api/v1/projects
+                gitUrlBlank:
+                  summary: git_url was provided but is blank
+                  value:
+                    type: https://httpstatuses.io/400
+                    title: Bad Request
+                    status: 400
+                    detail: "The 'git_url' field must not be empty when provided."
+                    instance: /api/v1/projects
+        "409":
+          description: >
+            A project with the given `name` already exists. This is the
+            only condition under which this endpoint returns `409`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: https://httpstatuses.io/409
+                title: Conflict
+                status: 409
+                detail: "A project named 'shopping-cart-service' already exists."
+                instance: /api/v1/projects
+        "500":
+          description: >
+            An unhandled exception occurred while processing the request.
+            This is the only condition under which this endpoint returns
+            `500`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorProblemDetails"
+              example:
+                type: https://httpstatuses.io/500
+                title: Internal Server Error
+                status: 500
+                detail: "An unexpected error occurred while creating the project."
+                instance: /api/v1/projects
+                exception:
+                  exceptionType: Npgsql.NpgsqlException
+                  message: "Connection refused"
+                  stackTrace: "at Npgsql.NpgsqlConnection.Open() ..."
+
+  /projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: >
+          Identifier of the project, corresponding to the `id` field
+          returned by `GET /projects` or `POST /projects`. Must be a
+          positive 64-bit integer; any other format (e.g. a GUID or
+          non-numeric string) results in a `400` response.
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+
+    get:
+      tags:
+        - Projects
+      operationId: getProject
+      summary: Get a project by id
+      description: Returns a single project by its `id`.
+      responses:
+        "200":
+          description: The project matching `projectId`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+              example:
+                id: 1
+                name: shopping-cart-service
+                git_url: "https://github.com/example-org/shopping-cart-service.git"
+                git_raw_url: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
+                created_at: "2026-01-15T10:32:00Z"
+        "400":
+          description: >
+            The `projectId` path parameter is not a valid positive integer.
+            This is the only condition under which this endpoint returns
+            `400`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: https://httpstatuses.io/400
+                title: Bad Request
+                status: 400
+                detail: "The 'projectId' route parameter must be a positive integer; received '3fa85f64-5717-4562-b3fc-2c963f66afa6'."
+                instance: /api/v1/projects/3fa85f64-5717-4562-b3fc-2c963f66afa6
+        "404":
+          description: >
+            No project exists with the given `projectId`. This is the only
+            condition under which this endpoint returns `404`; the response
+            has no body.
+        "500":
+          description: >
+            An unhandled exception occurred while processing the request.
+            This is the only condition under which this endpoint returns
+            `500`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorProblemDetails"
+              example:
+                type: https://httpstatuses.io/500
+                title: Internal Server Error
+                status: 500
+                detail: "An unexpected error occurred while fetching the project."
+                instance: /api/v1/projects/1
+                exception:
+                  exceptionType: Npgsql.NpgsqlException
+                  message: "Connection refused"
+                  stackTrace: "at Npgsql.NpgsqlConnection.Open() ..."
+
+    put:
+      tags:
+        - Projects
+      operationId: updateProject
+      summary: Rename a project
+      description: >
+        Replaces the mutable fields of an existing project: `name`,
+        `git_url`, and `git_raw_url`. This is a full replace, not a partial
+        patch - fields omitted from the request body are cleared (set to
+        null), so a client that only wants to rename a project must resend
+        its current `git_url`/`git_raw_url` alongside the new `name` (e.g.
+        from a prior `GET /projects/{projectId}`). `name` is subject to the
+        same uniqueness constraint as `POST /projects` (renaming a project
+        to its own current name is allowed and is a no-op). `id` and
+        `created_at` are immutable and cannot be changed.
+      requestBody:
+        required: true
+        description: The project's new name and git repository details.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectRequest"
+            examples:
+              default:
+                value:
+                  name: cart-service
+                  git_url: "https://github.com/example-org/cart-service.git"
+                  git_raw_url: "https://raw.githubusercontent.com/example-org/cart-service/main"
+      responses:
+        "200":
+          description: The project was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+              example:
+                id: 1
+                name: cart-service
+                git_url: "https://github.com/example-org/cart-service.git"
+                git_raw_url: "https://raw.githubusercontent.com/example-org/cart-service/main"
+                created_at: "2026-01-15T10:32:00Z"
+        "400":
+          description: >
+            Either the `projectId` path parameter is not a valid positive
+            integer, or the request body is missing or malformed, or the
+            `name` field is missing/empty/blank, or `name` exceeds the
+            maximum allowed length, or `git_url`/`git_raw_url` was provided
+            but is blank or exceeds the maximum allowed length. This is the
+            only client-error condition other than `404`/`409` under which
+            this endpoint fails.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                invalidProjectId:
+                  summary: projectId is not a valid integer
+                  value:
+                    type: https://httpstatuses.io/400
+                    title: Bad Request
+                    status: 400
+                    detail: "The 'projectId' route parameter must be a positive integer; received '3fa85f64-5717-4562-b3fc-2c963f66afa6'."
+                    instance: /api/v1/projects/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                invalidBody:
+                  summary: name is missing or blank
+                  value:
+                    type: https://httpstatuses.io/400
+                    title: Bad Request
+                    status: 400
+                    detail: "The 'name' field is required and must not be empty."
+                    instance: /api/v1/projects/1
+        "404":
+          description: >
+            No project exists with the given `projectId`. This is the only
+            condition under which this endpoint returns `404`; the response
+            has no body.
+        "409":
+          description: >
+            Another project already has the given `name`. This is the only
+            condition under which this endpoint returns `409`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: https://httpstatuses.io/409
+                title: Conflict
+                status: 409
+                detail: "A project named 'cart-service' already exists."
+                instance: /api/v1/projects/1
+        "500":
+          description: >
+            An unhandled exception occurred while processing the request.
+            This is the only condition under which this endpoint returns
+            `500`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorProblemDetails"
+              example:
+                type: https://httpstatuses.io/500
+                title: Internal Server Error
+                status: 500
+                detail: "An unexpected error occurred while renaming the project."
+                instance: /api/v1/projects/1
+                exception:
+                  exceptionType: Npgsql.NpgsqlException
+                  message: "Connection refused"
+                  stackTrace: "at Npgsql.NpgsqlConnection.Open() ..."
+
+    delete:
+      tags:
+        - Projects
+      operationId: deleteProject
+      summary: Delete a project
+      description: >
+        Permanently deletes a project. To prevent silently orphaning or
+        destroying indexed code, a project that still has indexed code
+        documents cannot be deleted - remove/re-index those first (outside
+        the scope of this API). This is a hard delete; there is no
+        soft-delete or undo.
+      responses:
+        "204":
+          description: The project was deleted. The response has no body.
+        "400":
+          description: >
+            The `projectId` path parameter is not a valid positive integer.
+            This is the only client-error condition other than `404`/`409`
+            under which this endpoint fails.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: https://httpstatuses.io/400
+                title: Bad Request
+                status: 400
+                detail: "The 'projectId' route parameter must be a positive integer; received '3fa85f64-5717-4562-b3fc-2c963f66afa6'."
+                instance: /api/v1/projects/3fa85f64-5717-4562-b3fc-2c963f66afa6
+        "404":
+          description: >
+            No project exists with the given `projectId`. This is the only
+            condition under which this endpoint returns `404`; the response
+            has no body.
+        "409":
+          description: >
+            The project has one or more indexed code documents and cannot
+            be deleted. This is the only condition under which this
+            endpoint returns `409`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: https://httpstatuses.io/409
+                title: Conflict
+                status: 409
+                detail: "Project 1 has indexed code documents and cannot be deleted. Remove its indexed code documents first."
+                instance: /api/v1/projects/1
+        "500":
+          description: >
+            An unhandled exception occurred while processing the request.
+            This is the only condition under which this endpoint returns
+            `500`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorProblemDetails"
+              example:
+                type: https://httpstatuses.io/500
+                title: Internal Server Error
+                status: 500
+                detail: "An unexpected error occurred while deleting the project."
+                instance: /api/v1/projects/1
                 exception:
                   exceptionType: Npgsql.NpgsqlException
                   message: "Connection refused"
@@ -279,8 +658,30 @@ components:
           type: string
           description: >
             Unique, human-readable name of the project (`projects.name`).
-            Used as the searchable field for `GET /projects?name=`.
+            Used as the searchable field for `GET /projects?name=`, and as
+            the field set by `POST /projects` and `PUT /projects/{projectId}`.
           example: shopping-cart-service
+        git_url:
+          type: string
+          nullable: true
+          description: >
+            URL of the project's git repository (`projects.git_url`), e.g.
+            its clone/remote URL. Optional; null when not set. Not
+            validated for reachability - only for being non-blank and
+            within the maximum allowed length when provided.
+          example: "https://github.com/example-org/shopping-cart-service.git"
+        git_raw_url:
+          type: string
+          nullable: true
+          description: >
+            Base URL for fetching raw file contents from the project's git
+            repository (`projects.git_raw_url`), e.g. a "raw" content host
+            URL that a client can append a `code_documents.source_file`
+            path to in order to link directly to the matched source. Optional;
+            null when not set. Not validated for reachability - only for
+            being non-blank and within the maximum allowed length when
+            provided.
+          example: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
         created_at:
           type: string
           format: date-time
@@ -292,7 +693,53 @@ components:
       required:
         - id
         - name
+        - git_url
+        - git_raw_url
         - created_at
+
+    ProjectRequest:
+      type: object
+      description: >
+        Request body for creating (`POST /projects`) or replacing
+        (`PUT /projects/{projectId}`) a project. For `PUT`, this is a full
+        replace: omitting `git_url`/`git_raw_url` clears them (sets them to
+        null) rather than leaving the project's current values untouched.
+      properties:
+        name:
+          type: string
+          description: >
+            The project's name (`projects.name`). Must be unique across all
+            projects (case-sensitive, exact match) and must not be empty or
+            blank. Attempting to create or rename a project to a name that
+            is already in use results in a `409`.
+          minLength: 1
+          maxLength: 200
+          example: shopping-cart-service
+        git_url:
+          type: string
+          nullable: true
+          description: >
+            URL of the project's git repository. Optional; omit or send
+            null for a project with no known repository URL. When
+            provided, must not be blank and must be at most 2000
+            characters long.
+          minLength: 1
+          maxLength: 2000
+          example: "https://github.com/example-org/shopping-cart-service.git"
+        git_raw_url:
+          type: string
+          nullable: true
+          description: >
+            Base URL for fetching raw file contents from the project's git
+            repository. Optional; omit or send null when not applicable.
+            When provided, must not be blank and must be at most 2000
+            characters long.
+          minLength: 1
+          maxLength: 2000
+          example: "https://raw.githubusercontent.com/example-org/shopping-cart-service/main"
+      required:
+        - name
+      additionalProperties: false
 
     CodeQueryRequest:
       type: object

@@ -17,6 +17,8 @@ CREATE TABLE public.embedding_models (
 CREATE TABLE public.projects (
     id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
     "name" text NOT NULL,
+    git_url text NULL,
+    git_raw_url text NULL,
     created_at timestamptz DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL,
     CONSTRAINT "PK_projects" PRIMARY KEY (id),
     CONSTRAINT ux_projects_name UNIQUE (name)

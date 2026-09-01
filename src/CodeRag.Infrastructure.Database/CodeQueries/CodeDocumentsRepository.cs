@@ -54,6 +54,15 @@ public sealed class CodeDocumentsRepository(NpgsqlDataSource dataSource) : ICode
         return rows.Select(r => r.ToResult());
     }
 
+    public async Task<bool> ExistsForProjectAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM public.code_documents WHERE project_id = @ProjectId)";
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        var command = new CommandDefinition(sql, new { ProjectId = projectId }, cancellationToken: cancellationToken);
+        return await connection.ExecuteScalarAsync<bool>(command);
+    }
+
     // SA1313 wants these lower-case, but positional record parameters are also the record's
     // public properties - the standard .NET convention is PascalCase, matching the "AS Id",
     // "AS SourceFile", ... aliases in the SQL above that Dapper binds them from.

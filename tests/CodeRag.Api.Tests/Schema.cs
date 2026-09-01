@@ -20,6 +20,8 @@ internal static class Schema
         CREATE TABLE public.projects (
             id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name text NOT NULL,
+            git_url text NULL,
+            git_raw_url text NULL,
             created_at timestamptz DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL,
             CONSTRAINT ux_projects_name UNIQUE (name)
         );

@@ -21,7 +21,12 @@ public sealed class ProjectToolsTests
     [Fact]
     public async Task Should_ReturnMappedProjects_When_ServiceSucceeds()
     {
-        var project = new Project(1, _faker.Commerce.ProductName(), _faker.Date.PastOffset().UtcDateTime);
+        var project = new Project(
+            1,
+            _faker.Commerce.ProductName(),
+            _faker.Internet.Url(),
+            _faker.Internet.Url(),
+            _faker.Date.PastOffset().UtcDateTime);
         _projectsService.ListAsync(null, Arg.Any<CancellationToken>()).Returns(new[] { project });
 
         var result = await _sut.ListProjectsAsync(null, CancellationToken.None);
@@ -29,6 +34,8 @@ public sealed class ProjectToolsTests
         var item = result.ShouldHaveSingleItem();
         item.Id.ShouldBe(project.Id);
         item.Name.ShouldBe(project.Name);
+        item.GitUrl.ShouldBe(project.GitUrl);
+        item.GitRawUrl.ShouldBe(project.GitRawUrl);
         item.CreatedAt.ShouldBe(project.CreatedAt);
     }
 

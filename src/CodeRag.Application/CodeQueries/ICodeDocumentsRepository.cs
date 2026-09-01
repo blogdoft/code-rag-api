@@ -27,4 +27,9 @@ public interface ICodeDocumentsRepository
         int limit,
         double? minSimilarity,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Whether any code document is indexed for the given project.</summary>
+    /// <param name="projectId">Id of the project to check.</param>
+    /// <param name="cancellationToken">Token used to cancel the lookup.</param>
+    Task<bool> ExistsForProjectAsync(long projectId, CancellationToken cancellationToken = default);
 }

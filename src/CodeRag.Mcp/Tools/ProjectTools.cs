@@ -29,5 +29,6 @@ public sealed class ProjectTools(IProjectsService projectsService)
             onFailure: failure => throw new McpException(failure.Message));
     }
 
-    private static ProjectToolResult ToToolResult(Project project) => new(project.Id, project.Name, project.CreatedAt);
+    private static ProjectToolResult ToToolResult(Project project) =>
+        new(project.Id, project.Name, project.GitUrl, project.GitRawUrl, project.CreatedAt);
 }

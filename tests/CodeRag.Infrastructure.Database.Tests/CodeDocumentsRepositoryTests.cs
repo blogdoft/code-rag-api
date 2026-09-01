@@ -104,6 +104,29 @@ public sealed class CodeDocumentsRepositoryTests(PostgresFixture fixture)
         results.Count().ShouldBe(2);
     }
 
+    [Fact]
+    public async Task Should_ReturnTrue_When_ProjectHasIndexedCodeDocuments()
+    {
+        var model = UniqueModelName();
+        var modelId = await InsertEmbeddingModelAsync("Ollama", model, 3);
+        var projectId = await InsertProjectAsync();
+        await InsertCodeDocumentAsync(projectId, modelId, "some-doc", new Vector(new float[] { 1f, 0f, 0f }));
+
+        var exists = await _repository.ExistsForProjectAsync(projectId);
+
+        exists.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Should_ReturnFalse_When_ProjectHasNoIndexedCodeDocuments()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var exists = await _repository.ExistsForProjectAsync(projectId);
+
+        exists.ShouldBeFalse();
+    }
+
     private string UniqueModelName() => $"bge-m3-{_faker.Random.AlphaNumeric(12)}";
 
     private async Task<long> InsertProjectAsync()

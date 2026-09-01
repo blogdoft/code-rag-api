@@ -1,227 +1,115 @@
 openapi: 3.0.4
 info:
   title: Code RAG API
-  description: >-
-    API for managing indexed code projects and querying their vectorized source
-    code using natural language. Projects support full CRUD via POST/GET/PUT/DELETE
-    /projects. The service stores per-project code documents (functions, types, members, etc.)
-    along with vector embeddings, and allows retrieving the most semantically similar
-    pieces of code for a given natural language question via a pgvector-backed similarity search.
-
-
-    All endpoints exclusively accept and return application/json. Client errors
-    and server errors are reported using the RFC 7807 "Problem Details for HTTP APIs"
-    format, with the exception of 404 responses, which are returned with no response body.
+  description: "API for managing indexed code projects and querying their vectorized source code using\nnatural language. Projects support full CRUD via POST/GET/PUT/DELETE /projects. The\nservice stores per-project code documents (functions, types, members, etc.) along with\nvector embeddings, and allows retrieving the most semantically similar pieces of code for\na given natural language question via a pgvector-backed similarity search.\n\nAll endpoints exclusively accept and return application/json. Client errors and server\nerrors are reported using the RFC 7807 \"Problem Details for HTTP APIs\" format, with the\nexception of 404 responses, which are returned with no response body."
   version: 1.0.0
 paths:
-  /api/v1/projects/{projectId}/code-queries:
+  '/api/v1/projects/{projectId}/code-queries':
     post:
       tags:
         - Code Query
       summary: Query a project's indexed code using natural language
-      description: >-
-        Accepts a natural language question about a project's codebase, converts
-        it into a vector embedding, and returns the code documents from that project whose
-        stored embeddings are most semantically similar to the question.
-                    
-        When the project exists but no code document scores highly enough to be
-        considered a match, the response is a 200 OK with an empty array - this is not
-        treated as an error.
-
-        A 404 is returned only when the projectId itself does not correspond to
-        any project.
+      description: "Accepts a natural language question about a project's codebase, converts it into a\nvector embedding, and returns the code documents from that project whose stored\nembeddings are most semantically similar to the question.\n            \nWhen the project exists but no code document scores highly enough to be considered a\nmatch, the response is a 200 OK with an empty array - this is not treated as an error.\nA 404 is returned only when the projectId itself does not correspond to any project."
       parameters:
         - name: projectId
           in: path
-          description: >-
-            Identifier of the project to search, corresponding to the `id` field
-            returned by
-
-            `GET /projects`. Must be a positive 64-bit integer; any other format
-            (e.g. a GUID or
-
-            non-numeric string) results in a 400 response.
+          description: "Identifier of the project to search, corresponding to the `id` field returned by\n`GET /projects`. Must be a positive 64-bit integer; any other format (e.g. a GUID or\nnon-numeric string) results in a 400 response."
           required: true
           schema:
             type: string
       requestBody:
-        description: The natural language question to search the project's code with.
+        description: "The natural language question to search the project's code with, plus any optional\n`kind`/`namespace`/`typeName` filters."
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CodeQueryRequest"
+              $ref: '#/components/schemas/CodeQueryRequest'
       responses:
-        "200":
-          description: >-
-            The code documents most semantically similar to the natural language
-            question, ordered by
-
-            descending similarity. Returns an empty array when the project has
-            no code documents, or
-
-            none are found to be similar enough to the question.
+        '200':
+          description: "The code documents most semantically similar to the natural language question, ordered by\ndescending similarity. Returns an empty array when the project has no code documents, or\nnone are found to be similar enough to the question."
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/CodeQueryResultResponse"
-        "400":
-          description: >-
-            Either the projectId path parameter is not a valid positive integer
-            (e.g. a GUID was
-
-            supplied), or the request body is missing the question field, has an
-            empty/blank question,
-
-            or is otherwise malformed.
+                  $ref: '#/components/schemas/CodeQueryResultResponse'
+        '400':
+          description: "Either the projectId path parameter is not a valid positive integer (e.g. a GUID was\nsupplied), the request body is missing the question field, has an empty/blank question, an\noptional filter's value is empty/blank or too long, or the request is otherwise malformed."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "404":
-          description: >-
-            No project exists with the given projectId. This is the only
-            condition under which this
-
-            endpoint returns 404; the response has no body.
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "No project exists with the given projectId. This is the only condition under which this\nendpoint returns 404; the response has no body."
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
   /api/v1/projects:
     get:
       tags:
         - Projects
       summary: List all projects
-      description: >-
-        Returns all registered projects. Optionally filter the results by
-        project name using a
-
-        partial, case-insensitive match against the name field. Use the returned
-        id values as the
-
-        projectId path parameter when fetching, renaming, or deleting a specific
-        project, or when
-
-        querying code via the /projects/{projectId}/code-queries endpoint.
-                    
-        When no project matches the supplied filter (or no projects exist at
-        all), the response is
-
-        a 200 OK with an empty array - this is not treated as an error.
+      description: "Returns all registered projects. Optionally filter the results by project name using a\npartial, case-insensitive match against the name field. Use the returned id values as the\nprojectId path parameter when fetching, renaming, or deleting a specific project, or when\nquerying code via the /projects/{projectId}/code-queries endpoint.\n            \nWhen no project matches the supplied filter (or no projects exist at all), the response is\na 200 OK with an empty array - this is not treated as an error."
       responses:
-        "200":
-          description: >-
-            A list of projects matching the given filter, or all projects if no
-            filter was supplied.
-
-            Returns an empty array when there are no matches.
+        '200':
+          description: "A list of projects matching the given filter, or all projects if no filter was supplied.\nReturns an empty array when there are no matches."
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ProjectResponse"
-        "400":
-          description: >-
-            The name query parameter is invalid (e.g. it exceeds the maximum
-            allowed length, or is
-
-            present but empty). This is the only condition under which this
-            endpoint returns 400.
+                  $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: "The name query parameter is invalid (e.g. it exceeds the maximum allowed length, or is\npresent but empty). This is the only condition under which this endpoint returns 400."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
     post:
       tags:
         - Projects
       summary: Create a project
-      description: >-
-        Registers a new project so its source code can later be indexed and
-        searched. The
-
-        project's name must be unique across all projects (case-sensitive, exact
-        match); creating
-
-        a project with a name that already exists returns a 409. git_url and
-        git_raw_url are
-
-        optional and, when provided, are validated but not otherwise checked for
-        reachability.
-                    
-        On success, the response includes a Location header pointing to the new
-        project's
-
-        GET /projects/{projectId} URL, per the standard HTTP convention for 201
-        Created responses.
+      description: "Registers a new project so its source code can later be indexed and searched. The\nproject's name must be unique across all projects (case-sensitive, exact match); creating\na project with a name that already exists returns a 409. git_url and git_raw_url are\noptional and, when provided, are validated but not otherwise checked for reachability.\n            \nOn success, the response includes a Location header pointing to the new project's\nGET /projects/{projectId} URL, per the standard HTTP convention for 201 Created responses."
       requestBody:
-        description: The new project's name and, optionally, its git repository details.
+        description: 'The new project''s name and, optionally, its git repository details.'
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ProjectRequest"
+              $ref: '#/components/schemas/ProjectRequest'
       responses:
-        "201":
+        '201':
           description: The project was created.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectResponse"
-        "400":
-          description: >-
-            The request body is missing or malformed, the name field is
-            missing/empty/blank, name
-
-            exceeds the maximum allowed length, or git_url/git_raw_url was
-            provided but is blank or
-
-            exceeds the maximum allowed length. This is the only client-error
-            condition other than 409
-
-            under which this endpoint fails.
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: "The request body is missing or malformed, the name field is missing/empty/blank, name\nexceeds the maximum allowed length, or git_url/git_raw_url was provided but is blank or\nexceeds the maximum allowed length. This is the only client-error condition other than 409\nunder which this endpoint fails."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
-          description: >-
-            A project with the given name already exists. This is the only
-            condition under which this
-
-            endpoint returns 409.
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: "A project with the given name already exists. This is the only condition under which this\nendpoint returns 409."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
-  /api/v1/projects/{projectId}:
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
+  '/api/v1/projects/{projectId}':
     get:
       tags:
         - Projects
@@ -231,85 +119,40 @@ paths:
       parameters:
         - name: projectId
           in: path
-          description: >-
-            Identifier of the project, corresponding to the id field returned by
-            GET /projects or
-
-            POST /projects. Must be a positive 64-bit integer; any other format
-            (e.g. a GUID or
-
-            non-numeric string) results in a 400 response.
+          description: "Identifier of the project, corresponding to the id field returned by GET /projects or\nPOST /projects. Must be a positive 64-bit integer; any other format (e.g. a GUID or\nnon-numeric string) results in a 400 response."
           required: true
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: The project matching projectId.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectResponse"
-        "400":
-          description: >-
-            The projectId path parameter is not a valid positive integer. This
-            is the only condition
-
-            under which this endpoint returns 400.
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: "The projectId path parameter is not a valid positive integer. This is the only condition\nunder which this endpoint returns 400."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "404":
-          description: >-
-            No project exists with the given projectId. This is the only
-            condition under which this
-
-            endpoint returns 404; the response has no body.
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "No project exists with the given projectId. This is the only condition under which this\nendpoint returns 404; the response has no body."
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
     put:
       tags:
         - Projects
       summary: Rename a project
-      description: >-
-        Replaces the mutable fields of an existing project: name, git_url, and
-        git_raw_url. This is
-
-        a full replace, not a partial patch - fields omitted from the request
-        body are cleared (set
-
-        to null), so a client that only wants to rename a project must resend
-        its current
-
-        git_url/git_raw_url alongside the new name (e.g. from a prior GET
-        /projects/{projectId}).
-
-        name is subject to the same uniqueness constraint as POST /projects
-        (renaming a project to
-
-        its own current name is allowed and is a no-op). id and created_at are
-        immutable and cannot
-
-        be changed.
+      description: "Replaces the mutable fields of an existing project: name, git_url, and git_raw_url. This is\na full replace, not a partial patch - fields omitted from the request body are cleared (set\nto null), so a client that only wants to rename a project must resend its current\ngit_url/git_raw_url alongside the new name (e.g. from a prior GET /projects/{projectId}).\nname is subject to the same uniqueness constraint as POST /projects (renaming a project to\nits own current name is allowed and is a no-op). id and created_at are immutable and cannot\nbe changed."
       parameters:
         - name: projectId
           in: path
-          description: >-
-            Identifier of the project, corresponding to the id field returned by
-            GET /projects or
-
-            POST /projects. Must be a positive 64-bit integer; any other format
-            (e.g. a GUID or
-
-            non-numeric string) results in a 400 response.
+          description: "Identifier of the project, corresponding to the id field returned by GET /projects or\nPOST /projects. Must be a positive 64-bit integer; any other format (e.g. a GUID or\nnon-numeric string) results in a 400 response."
           required: true
           schema:
             type: string
@@ -318,147 +161,112 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ProjectRequest"
+              $ref: '#/components/schemas/ProjectRequest'
       responses:
-        "200":
+        '200':
           description: The project was updated.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProjectResponse"
-        "400":
-          description: >-
-            Either the projectId path parameter is not a valid positive integer,
-            or the request body is
-
-            missing or malformed, or the name field is missing/empty/blank, or
-            name exceeds the maximum
-
-            allowed length, or git_url/git_raw_url was provided but is blank or
-            exceeds the maximum
-
-            allowed length. This is the only client-error condition other than
-            404/409 under which this
-
-            endpoint fails.
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: "Either the projectId path parameter is not a valid positive integer, or the request body is\nmissing or malformed, or the name field is missing/empty/blank, or name exceeds the maximum\nallowed length, or git_url/git_raw_url was provided but is blank or exceeds the maximum\nallowed length. This is the only client-error condition other than 404/409 under which this\nendpoint fails."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "404":
-          description: >-
-            No project exists with the given projectId. This is the only
-            condition under which this
-
-            endpoint returns 404; the response has no body.
-        "409":
-          description: >-
-            Another project already has the given name. This is the only
-            condition under which this
-
-            endpoint returns 409.
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "No project exists with the given projectId. This is the only condition under which this\nendpoint returns 404; the response has no body."
+        '409':
+          description: "Another project already has the given name. This is the only condition under which this\nendpoint returns 409."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
     delete:
       tags:
         - Projects
       summary: Delete a project
-      description: >-
-        Permanently deletes a project. To prevent silently orphaning or
-        destroying indexed code, a
-
-        project that still has indexed code documents cannot be deleted -
-        remove/re-index those
-
-        first (outside the scope of this API). This is a hard delete; there is
-        no soft-delete or
-
-        undo.
+      description: "Permanently deletes a project. To prevent silently orphaning or destroying indexed code, a\nproject that still has indexed code documents cannot be deleted - remove/re-index those\nfirst (outside the scope of this API). This is a hard delete; there is no soft-delete or\nundo."
       parameters:
         - name: projectId
           in: path
-          description: >-
-            Identifier of the project, corresponding to the id field returned by
-            GET /projects or
-
-            POST /projects. Must be a positive 64-bit integer; any other format
-            (e.g. a GUID or
-
-            non-numeric string) results in a 400 response.
+          description: "Identifier of the project, corresponding to the id field returned by GET /projects or\nPOST /projects. Must be a positive 64-bit integer; any other format (e.g. a GUID or\nnon-numeric string) results in a 400 response."
           required: true
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: The project was deleted. The response has no body.
-        "400":
-          description: >-
-            The projectId path parameter is not a valid positive integer. This
-            is the only
-
-            client-error condition other than 404/409 under which this endpoint
-            fails.
+        '400':
+          description: "The projectId path parameter is not a valid positive integer. This is the only\nclient-error condition other than 404/409 under which this endpoint fails."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "404":
-          description: >-
-            No project exists with the given projectId. This is the only
-            condition under which this
-
-            endpoint returns 404; the response has no body.
-        "409":
-          description: >-
-            The project has one or more indexed code documents and cannot be
-            deleted. This is the only
-
-            condition under which this endpoint returns 409.
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "No project exists with the given projectId. This is the only condition under which this\nendpoint returns 404; the response has no body."
+        '409':
+          description: "The project has one or more indexed code documents and cannot be deleted. This is the only\ncondition under which this endpoint returns 409."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "500":
-          description: >-
-            An unhandled exception occurred while processing the request. This
-            is the only condition
-
-            under which this endpoint returns 500.
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ServerErrorProblemDetails"
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
 components:
   schemas:
+    CodeQueryKindFilterRequest:
+      required:
+        - operator
+        - value
+      type: object
+      properties:
+        operator:
+          $ref: '#/components/schemas/KindFilterOperator'
+        value:
+          type: string
+          description: "Value to compare `kind` against. Must not be empty or blank. When the operator is\n`Contains`, `*` acts as a wildcard matching any sequence of characters (e.g.\n`fun*` matches values starting with \"fun\"); a value with no `*` is matched exactly\n(case-insensitively). Ignored for other operators."
+          nullable: true
+      additionalProperties: false
+      description: Optional filter narrowing results to code documents matching a `kind` condition.
+    CodeQueryNamespaceFilterRequest:
+      required:
+        - operator
+        - value
+      type: object
+      properties:
+        operator:
+          $ref: '#/components/schemas/NamespaceFilterOperator'
+        value:
+          type: string
+          description: "Value to compare `namespace` against. Must not be empty or blank. When the operator is\n`Contains` or `NotContains`, `*` acts as a wildcard matching any sequence of\ncharacters (e.g. `*Billing*` matches values containing \"Billing\"); a value with no\n`*` is matched exactly (case-insensitively). Ignored for other operators."
+          nullable: true
+      additionalProperties: false
+      description: Optional filter narrowing results to code documents matching a `namespace` condition.
     CodeQueryRequest:
       type: object
       properties:
         question:
           type: string
-          description: >-
-            A natural language ask describing the code the caller is looking for
-            (e.g. "where is the
-
-            retry logic for failed payments?"). This text is embedded and
-            compared against the stored
-
-            code documents' embeddings for the target project using cosine
-            similarity. Must not be empty
-
-            or blank.
+          description: "A natural language ask describing the code the caller is looking for (e.g. \"where is the\nretry logic for failed payments?\"). This text is embedded and compared against the stored\ncode documents' embeddings for the target project using cosine similarity. Must not be empty\nor blank."
           nullable: true
+        kind:
+          $ref: '#/components/schemas/CodeQueryKindFilterRequest'
+        namespace:
+          $ref: '#/components/schemas/CodeQueryNamespaceFilterRequest'
+        type_name:
+          $ref: '#/components/schemas/CodeQueryTypeNameFilterRequest'
       additionalProperties: false
       description: Natural language search request scoped to a single project.
     CodeQueryResultResponse:
@@ -470,65 +278,52 @@ components:
           format: int64
         source_file:
           type: string
-          description: Path to the source file this code document was extracted from,
-            relative to the project root.
+          description: 'Path to the source file this code document was extracted from, relative to the project root.'
           nullable: true
         gitRawUrl:
           type: string
-          description: Provides a hyperlink that redirects user to a raw view of file at it's git's page'
+          description: "Hyperlink to a raw view of this code document's source file, built by concatenating the\nproject's `git_raw_url` with `source_file`. Null when the project has no\n`git_raw_url` set, or when `source_file` is null."
           nullable: true
         gitUrl:
           type: string
-          description: Provides a hyperlink to project git repository.
+          description: Hyperlink to the project's git repository (the project's `git_url`).
+          nullable: true
         kind:
           type: string
-          description: >-
-            The kind of code element this document represents (e.g. `function`,
-            `method`,
-
-            `class`, `interface`) as determined by the analyzer that indexed the
-            source.
+          description: "The kind of code element this document represents (e.g. `function`, `method`,\n`class`, `interface`) as determined by the analyzer that indexed the source."
           nullable: true
         type_name:
           type: string
-          description: >-
-            Name of the enclosing type (class, struct, interface, etc.), if any,
-            that this document
-
-            belongs to.
+          description: "Name of the enclosing type (class, struct, interface, etc.), if any, that this document\nbelongs to."
           nullable: true
         member:
           type: string
-          description: >-
-            Name of the specific member (method, property, field, function) this
-            document represents, if
-
-            applicable.
+          description: "Name of the specific member (method, property, field, function) this document represents, if\napplicable."
           nullable: true
         embedding_text:
           type: string
-          description: >-
-            The normalized text representation of this code element that was
-            embedded and stored as a
-
-            vector. Typically a signature, summary, or snippet describing the
-            code element's purpose.
+          description: "The normalized text representation of this code element that was embedded and stored as a\nvector. Typically a signature, summary, or snippet describing the code element's purpose."
           nullable: true
         similarity:
           type: number
-          description: >-
-            Cosine similarity between the query's embedding vector and this
-            document's stored embedding.
-
-            Ranges from 1.0 (identical) to -1.0 (opposite); higher values
-            indicate closer semantic matches.
+          description: "Cosine similarity between the query's embedding vector and this document's stored embedding.\nRanges from 1.0 (identical) to -1.0 (opposite); higher values indicate closer semantic matches."
           format: double
       additionalProperties: false
-      description: >-
-        A single code document matched against a natural language query,
-        annotated with its computed
-
-        similarity score. Serializes as snake_case.
+      description: "A single code document matched against a natural language query, annotated with its computed\nsimilarity score. Serializes as snake_case, except `gitRawUrl`/`gitUrl` which are\ncamelCase per the OpenAPI contract."
+    CodeQueryTypeNameFilterRequest:
+      required:
+        - operator
+        - value
+      type: object
+      properties:
+        operator:
+          $ref: '#/components/schemas/TypeNameFilterOperator'
+        value:
+          type: string
+          description: "Value to compare `typeName` against. Must not be empty or blank. When the operator is\n`Contains` or `NotContains`, `*` acts as a wildcard matching any sequence of\ncharacters (e.g. `*Controller` matches values ending with \"Controller\"); a value with no\n`*` is matched exactly (case-insensitively). Ignored for other operators."
+          nullable: true
+      additionalProperties: false
+      description: Optional filter narrowing results to code documents matching a `typeName` condition.
     ExceptionDetails:
       type: object
       properties:
@@ -546,6 +341,19 @@ components:
           nullable: true
       additionalProperties: false
       description: Details of the unhandled exception that caused the request to fail.
+    KindFilterOperator:
+      enum:
+        - contains
+        - equals
+        - not_equals
+      type: string
+    NamespaceFilterOperator:
+      enum:
+        - contains
+        - not_contains
+        - equals
+        - not_equals
+      type: string
     ProblemDetails:
       type: object
       properties:
@@ -565,112 +373,49 @@ components:
         instance:
           type: string
           nullable: true
-      additionalProperties: {}
+      additionalProperties: { }
     ProjectRequest:
       type: object
       properties:
         name:
           type: string
-          description: >-
-            The project's name. Must be unique across all projects
-            (case-sensitive, exact match) and must
-
-            not be empty or blank. Attempting to create or rename a project to a
-            name that is already in
-
-            use results in a 409.
+          description: "The project's name. Must be unique across all projects (case-sensitive, exact match) and must\nnot be empty or blank. Attempting to create or rename a project to a name that is already in\nuse results in a 409."
           nullable: true
         git_url:
           type: string
-          description: >-
-            URL of the project's git repository. Optional; omit or send null for
-            a project with no known
-
-            repository URL. When provided, must not be blank and must be at most
-            2000 characters long.
+          description: "URL of the project's git repository. Optional; omit or send null for a project with no known\nrepository URL. When provided, must not be blank and must be at most 2000 characters long."
           nullable: true
         git_raw_url:
           type: string
-          description: >-
-            Base URL for fetching raw file contents from the project's git
-            repository. Optional; omit or
-
-            send null when not applicable. When provided, must not be blank and
-            must be at most 2000
-
-            characters long.
+          description: "Base URL for fetching raw file contents from the project's git repository. Optional; omit or\nsend null when not applicable. When provided, must not be blank and must be at most 2000\ncharacters long."
           nullable: true
       additionalProperties: false
-      description: >-
-        Request body for creating (`POST /projects`) or replacing (`PUT
-        /projects/{projectId}`)
-
-        a project. For `PUT`, this is a full replace: omitting
-        `git_url`/`git_raw_url`
-
-        clears them (sets them to null) rather than leaving the project's
-        current values untouched.
+      description: "Request body for creating (`POST /projects`) or replacing (`PUT /projects/{projectId}`)\na project. For `PUT`, this is a full replace: omitting `git_url`/`git_raw_url`\nclears them (sets them to null) rather than leaving the project's current values untouched."
     ProjectResponse:
       type: object
       properties:
         id:
           type: integer
-          description: >-
-            Auto-generated, unique identifier of the project. Used as the
-            `projectId` path parameter
-
-            when querying code for this project.
+          description: "Auto-generated, unique identifier of the project. Used as the `projectId` path parameter\nwhen querying code for this project."
           format: int64
         name:
           type: string
-          description: >-
-            Unique, human-readable name of the project. Used as the searchable
-            field for
-
-            `GET /projects?name=`, and as the field set by `POST /projects` and
-
-            `PUT /projects/{projectId}`.
+          description: "Unique, human-readable name of the project. Used as the searchable field for\n`GET /projects?name=`, and as the field set by `POST /projects` and\n`PUT /projects/{projectId}`."
           nullable: true
         git_url:
           type: string
-          description: >-
-            URL of the project's git repository, e.g. its clone/remote URL.
-            Optional; null when not set.
-
-            Not validated for reachability - only for being non-blank and within
-            the maximum allowed
-
-            length when provided.
+          description: "URL of the project's git repository, e.g. its clone/remote URL. Optional; null when not set.\nNot validated for reachability - only for being non-blank and within the maximum allowed\nlength when provided."
           nullable: true
         git_raw_url:
           type: string
-          description: >-
-            Base URL for fetching raw file contents from the project's git
-            repository, e.g. a "raw"
-
-            content host URL that a client can append a matched code document's
-            source file path to in
-
-            order to link directly to the matched source. Optional; null when
-            not set. Not validated for
-
-            reachability - only for being non-blank and within the maximum
-            allowed length when provided.
+          description: "Base URL for fetching raw file contents from the project's git repository, e.g. a \"raw\"\ncontent host URL that a client can append a matched code document's source file path to in\norder to link directly to the matched source. Optional; null when not set. Not validated for\nreachability - only for being non-blank and within the maximum allowed length when provided."
           nullable: true
         created_at:
           type: string
-          description: >-
-            Timestamp (UTC) at which the project record was created. Defaults to
-            the insertion time on
-
-            the database if not otherwise specified.
+          description: "Timestamp (UTC) at which the project record was created. Defaults to the insertion time on\nthe database if not otherwise specified."
           format: date-time
       additionalProperties: false
-      description: >-
-        A project whose source code has been analyzed and indexed for semantic
-        search. Serializes as
-
-        snake_case.
+      description: "A project whose source code has been analyzed and indexed for semantic search. Serializes as\nsnake_case."
     ServerErrorProblemDetails:
       type: object
       properties:
@@ -691,19 +436,17 @@ components:
           type: string
           nullable: true
         exception:
-          $ref: "#/components/schemas/ExceptionDetails"
-      additionalProperties: {}
-      description: >-
-        Problem Details payload for 500 responses. Exposing the raised
-        exception's details is a
-
-        deliberate trade-off for ease of debugging in this API, per the OpenAPI
-        contract, and should
-
-        be disabled or redacted in a hardened deployment.
+          $ref: '#/components/schemas/ExceptionDetails'
+      additionalProperties: { }
+      description: "Problem Details payload for 500 responses. Exposing the raised exception's details is a\ndeliberate trade-off for ease of debugging in this API, per the OpenAPI contract, and should\nbe disabled or redacted in a hardened deployment."
+    TypeNameFilterOperator:
+      enum:
+        - contains
+        - not_contains
+        - equals
+      type: string
 tags:
   - name: Code Query
     description: Operations for querying indexed source code using natural language.
   - name: Projects
-    description: CRUD operations for registering, discovering, renaming, and
-      removing indexed projects.
+    description: 'CRUD operations for registering, discovering, renaming, and removing indexed projects.'

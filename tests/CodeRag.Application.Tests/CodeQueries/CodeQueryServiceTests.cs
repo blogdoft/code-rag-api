@@ -75,7 +75,8 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(atLimit, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns([]);
 
         var result = await _sut.QueryAsync(projectId, atLimit);
@@ -115,7 +116,8 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(question, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(expected);
 
         var result = await _sut.QueryAsync(projectId, question);
@@ -132,13 +134,16 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
             .Returns([]);
 
         await _sut.QueryAsync(projectId, "some question");
 
         await _codeDocumentsRepository.Received(1).SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>());
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -174,13 +179,113 @@ public sealed class CodeQueryServiceTests
         _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
             .Returns([]);
 
         await _sut.QueryAsync(projectId, "some question", limit, minSimilarity);
 
         await _codeDocumentsRepository.Received(1).SearchAsync(
-            projectId, "Ollama", "bge-m3", 3, embedding.values, limit, minSimilarity, Arg.Any<CancellationToken>());
+            projectId, "Ollama", "bge-m3", 3, embedding.values, limit, minSimilarity,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_PassKindNamespaceTypeNameFilters_When_Provided()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _sut.QueryAsync(
+            projectId,
+            "some question",
+            kindOperator: KindFilterOperator.Equals,
+            kindValue: "function",
+            namespaceOperator: NamespaceFilterOperator.Contains,
+            namespaceValue: "Billing",
+            typeNameOperator: TypeNameFilterOperator.NotContains,
+            typeNameValue: "Controller");
+
+        await _codeDocumentsRepository.Received(1).SearchAsync(
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null,
+            KindFilterOperator.Equals, "function",
+            NamespaceFilterOperator.Contains, "Billing",
+            TypeNameFilterOperator.NotContains, "Controller",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Should_ReturnValidationFailure_When_KindFilterOperatorSetButValueIsBlank(string value)
+    {
+        var result = await _sut.QueryAsync(1, "some question", kindOperator: KindFilterOperator.Equals, kindValue: value);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Should_ReturnValidationFailure_When_NamespaceFilterOperatorSetButValueIsBlank(string value)
+    {
+        var result = await _sut.QueryAsync(1, "some question", namespaceOperator: NamespaceFilterOperator.Contains, namespaceValue: value);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Should_ReturnValidationFailure_When_TypeNameFilterOperatorSetButValueIsBlank(string value)
+    {
+        var result = await _sut.QueryAsync(1, "some question", typeNameOperator: TypeNameFilterOperator.Equals, typeNameValue: value);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_KindFilterValueExceedsMaxLength()
+    {
+        var tooLong = new string('a', CodeQueryService.MaxFilterValueLength + 1);
+
+        var result = await _sut.QueryAsync(1, "some question", kindOperator: KindFilterOperator.Contains, kindValue: tooLong);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_NamespaceFilterValueExceedsMaxLength()
+    {
+        var tooLong = new string('a', CodeQueryService.MaxFilterValueLength + 1);
+
+        var result = await _sut.QueryAsync(1, "some question", namespaceOperator: NamespaceFilterOperator.Contains, namespaceValue: tooLong);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_TypeNameFilterValueExceedsMaxLength()
+    {
+        var tooLong = new string('a', CodeQueryService.MaxFilterValueLength + 1);
+
+        var result = await _sut.QueryAsync(1, "some question", typeNameOperator: TypeNameFilterOperator.Contains, typeNameValue: tooLong);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("400");
     }
 
     [Fact]
@@ -196,7 +301,9 @@ public sealed class CodeQueryServiceTests
             .Returns(new Project(projectId, "shopping-cart-service", gitUrl, gitRawUrl, DateTime.UtcNow));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
             .Returns([new CodeQueryResult(1, sourceFile, "function", "DiscountCalculator", "apply", "some text", 0.9)]);
 
         var result = await _sut.QueryAsync(projectId, "some question");
@@ -216,7 +323,9 @@ public sealed class CodeQueryServiceTests
             .Returns(new Project(projectId, "shopping-cart-service", null, null, DateTime.UtcNow));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
             .Returns([new CodeQueryResult(1, "src/cart/pricing/discount_calculator.py", "function", "DiscountCalculator", "apply", "some text", 0.9)]);
 
         var result = await _sut.QueryAsync(projectId, "some question");
@@ -237,7 +346,9 @@ public sealed class CodeQueryServiceTests
             .Returns(new Project(projectId, "shopping-cart-service", null, gitRawUrl, DateTime.UtcNow));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
             .Returns([new CodeQueryResult(1, null, "function", "DiscountCalculator", "apply", "some text", 0.9)]);
 
         var result = await _sut.QueryAsync(projectId, "some question");

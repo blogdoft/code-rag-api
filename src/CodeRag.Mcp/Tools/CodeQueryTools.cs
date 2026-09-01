@@ -31,9 +31,47 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
             "this are semantically unrelated noise rather than genuine matches - set e.g. 0.5 to filter " +
             "them out. Omit to get the unfiltered top results regardless of relevance.")]
         double? minSimilarity = null,
+        [Description(
+            "Comparison operator for an optional filter on 'kind'. Must be set together with kindValue; " +
+            "omit both for no filtering on this field.")]
+        KindFilterOperator? kindOperator = null,
+        [Description(
+            "Value to compare 'kind' against using kindOperator. For the Contains operator, '*' acts as " +
+            "a wildcard matching any sequence of characters (e.g. 'fun*'); a value with no '*' is matched " +
+            "exactly (case-insensitively).")]
+        string? kindValue = null,
+        [Description(
+            "Comparison operator for an optional filter on 'namespace'. Must be set together with " +
+            "namespaceValue; omit both for no filtering on this field.")]
+        NamespaceFilterOperator? namespaceOperator = null,
+        [Description(
+            "Value to compare 'namespace' against using namespaceOperator. For the Contains/NotContains " +
+            "operators, '*' acts as a wildcard matching any sequence of characters (e.g. '*Billing*'); a " +
+            "value with no '*' is matched exactly (case-insensitively).")]
+        string? namespaceValue = null,
+        [Description(
+            "Comparison operator for an optional filter on 'typeName'. Must be set together with " +
+            "typeNameValue; omit both for no filtering on this field.")]
+        TypeNameFilterOperator? typeNameOperator = null,
+        [Description(
+            "Value to compare 'typeName' against using typeNameOperator. For the Contains/NotContains " +
+            "operators, '*' acts as a wildcard matching any sequence of characters (e.g. '*Controller'); a " +
+            "value with no '*' is matched exactly (case-insensitively).")]
+        string? typeNameValue = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await codeQueryService.QueryAsync(projectId, question, limit, minSimilarity, cancellationToken);
+        var result = await codeQueryService.QueryAsync(
+            projectId,
+            question,
+            limit,
+            minSimilarity,
+            kindOperator,
+            kindValue,
+            namespaceOperator,
+            namespaceValue,
+            typeNameOperator,
+            typeNameValue,
+            cancellationToken);
 
         return result.Map(
             onSuccess: results => results.Select(ToToolResult),

@@ -4,6 +4,7 @@ using Dapper;
 using Shouldly;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 
 namespace CodeRag.Api.Tests;
@@ -93,6 +94,79 @@ public sealed class CodeQueriesEndpointTests(ApiFixture fixture)
     }
 
     [Fact]
+    public async Task Should_ReturnBadRequest_When_KindFilterValueIsMissing()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var response = await PostRawAsync(
+            projectId,
+            """{"question":"where is X?","kind":{"operator":"equals"}}""");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_KindFilterOperatorIsInvalid()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var response = await PostRawAsync(
+            projectId,
+            """{"question":"where is X?","kind":{"operator":"bogus","value":"function"}}""");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_KindFilterValueIsBlank()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var response = await PostRawAsync(
+            projectId,
+            """{"question":"where is X?","kind":{"operator":"equals","value":"   "}}""");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_KindFilterValueExceedsMaxLength()
+    {
+        var projectId = await InsertProjectAsync();
+        var tooLong = new string('a', CodeQueryService.MaxFilterValueLength + 1);
+
+        var response = await PostRawAsync(
+            projectId,
+            "{\"question\":\"where is X?\",\"kind\":{\"operator\":\"contains\",\"value\":\"" + tooLong + "\"}}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_NamespaceFilterValueIsBlank()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var response = await PostRawAsync(
+            projectId,
+            """{"question":"where is X?","namespace":{"operator":"not_contains","value":""}}""");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_TypeNameFilterValueIsBlank()
+    {
+        var projectId = await InsertProjectAsync();
+
+        var response = await PostRawAsync(
+            projectId,
+            """{"question":"where is X?","type_name":{"operator":"not_contains","value":""}}""");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Should_ReturnServerErrorProblemDetails_When_EmbeddingProviderIsUnreachable()
     {
         // The configured BaseUrl is unroutable (see CustomWebApplicationFactory), so embedding
@@ -113,6 +187,11 @@ public sealed class CodeQueriesEndpointTests(ApiFixture fixture)
         exception.GetProperty("exception_type").GetString().ShouldNotBeNullOrEmpty();
         exception.GetProperty("message").GetString().ShouldNotBeNullOrEmpty();
     }
+
+    private Task<HttpResponseMessage> PostRawAsync(long projectId, string json) =>
+        _client.PostAsync(
+            $"/api/v1/projects/{projectId}/code-queries",
+            new StringContent(json, Encoding.UTF8, "application/json"));
 
     private async Task<long> InsertProjectAsync()
     {

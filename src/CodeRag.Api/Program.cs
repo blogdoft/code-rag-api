@@ -51,6 +51,8 @@ try
         {
             options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower;
             options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+            options.JsonSerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.SnakeCaseLower));
         });
 
     // Request bodies are always plain application/json - the JSON input formatter otherwise

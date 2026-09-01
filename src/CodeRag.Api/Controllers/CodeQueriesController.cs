@@ -27,7 +27,10 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
     /// <c>GET /projects</c>. Must be a positive 64-bit integer; any other format (e.g. a GUID or
     /// non-numeric string) results in a 400 response.
     /// </param>
-    /// <param name="request">The natural language question to search the project's code with.</param>
+    /// <param name="request">
+    /// The natural language question to search the project's code with, plus any optional
+    /// <c>kind</c>/<c>namespace</c>/<c>typeName</c> filters.
+    /// </param>
     /// <param name="cancellationToken">Propagates request abort/timeout to the async pipeline.</param>
     /// <response code="200">
     /// The code documents most semantically similar to the natural language question, ordered by
@@ -36,8 +39,8 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
     /// </response>
     /// <response code="400">
     /// Either the projectId path parameter is not a valid positive integer (e.g. a GUID was
-    /// supplied), or the request body is missing the question field, has an empty/blank question,
-    /// or is otherwise malformed.
+    /// supplied), the request body is missing the question field, has an empty/blank question, an
+    /// optional filter's value is empty/blank or too long, or the request is otherwise malformed.
     /// </response>
     /// <response code="404">
     /// No project exists with the given projectId. This is the only condition under which this
@@ -62,7 +65,16 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
             return problem!;
         }
 
-        var result = await codeQueryService.QueryAsync(id, request.Question, cancellationToken: cancellationToken);
+        var result = await codeQueryService.QueryAsync(
+            id,
+            request.Question,
+            kindOperator: request.Kind?.Operator,
+            kindValue: request.Kind?.Value,
+            namespaceOperator: request.Namespace?.Operator,
+            namespaceValue: request.Namespace?.Value,
+            typeNameOperator: request.TypeName?.Operator,
+            typeNameValue: request.TypeName?.Value,
+            cancellationToken: cancellationToken);
 
         return result.Map(
             onSuccess: results => (IActionResult)Ok(results.Select(ToResponse)),

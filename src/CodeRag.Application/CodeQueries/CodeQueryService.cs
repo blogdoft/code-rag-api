@@ -18,11 +18,20 @@ public sealed class CodeQueryService(
     /// <summary>Generous cap on a natural-language question; guards against embedding-cost abuse and token-limit overruns.</summary>
     public const int MaxQuestionLength = 1000;
 
+    /// <summary>Matches the <c>maxLength</c> constraint on each filter's <c>value</c> field in the OpenAPI contract.</summary>
+    public const int MaxFilterValueLength = 200;
+
     public async Task<Result<IEnumerable<CodeQueryResult>>> QueryAsync(
         long projectId,
         string? question,
         int? limit = null,
         double? minSimilarity = null,
+        KindFilterOperator? kindOperator = null,
+        string? kindValue = null,
+        NamespaceFilterOperator? namespaceOperator = null,
+        string? namespaceValue = null,
+        TypeNameFilterOperator? typeNameOperator = null,
+        string? typeNameValue = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -45,6 +54,15 @@ public sealed class CodeQueryService(
             return CodeQueryFailures.MinSimilarityOutOfRange;
         }
 
+        var filterValidationFailure =
+            ValidateFilterValue(kindOperator, kindValue, CodeQueryFailures.KindFilterValueRequired, CodeQueryFailures.KindFilterValueTooLong)
+            ?? ValidateFilterValue(namespaceOperator, namespaceValue, CodeQueryFailures.NamespaceFilterValueRequired, CodeQueryFailures.NamespaceFilterValueTooLong)
+            ?? ValidateFilterValue(typeNameOperator, typeNameValue, CodeQueryFailures.TypeNameFilterValueRequired, CodeQueryFailures.TypeNameFilterValueTooLong);
+        if (filterValidationFailure is not null)
+        {
+            return filterValidationFailure;
+        }
+
         var project = await projectsRepository.GetByIdAsync(projectId, cancellationToken);
         if (project is null)
         {
@@ -65,6 +83,12 @@ public sealed class CodeQueryService(
             queryEmbedding.values,
             limit ?? ResultLimit,
             minSimilarity,
+            kindOperator,
+            kindValue,
+            namespaceOperator,
+            namespaceValue,
+            typeNameOperator,
+            typeNameValue,
             cancellationToken);
 
         var resultsWithGitLinks = results.Select(result => result with
@@ -76,5 +100,27 @@ public sealed class CodeQueryService(
         });
 
         return Result<IEnumerable<CodeQueryResult>>.FromSuccess(resultsWithGitLinks);
+    }
+
+    // Value is only required/validated when the caller actually sets the operator - null operator
+    // means "no filter", regardless of what value was passed alongside it.
+    private static Failure? ValidateFilterValue<TOperator>(
+        TOperator? filterOperator,
+        string? value,
+        Failure valueRequiredFailure,
+        Func<int, Failure> valueTooLongFailure)
+        where TOperator : struct
+    {
+        if (filterOperator is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return valueRequiredFailure;
+        }
+
+        return value.Length > MaxFilterValueLength ? valueTooLongFailure(MaxFilterValueLength) : null;
     }
 }

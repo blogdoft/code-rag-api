@@ -33,7 +33,9 @@ public sealed class CodeQueryToolsTests
             0.9,
             _faker.Internet.Url(),
             _faker.Internet.Url());
-        _codeQueryService.QueryAsync(projectId, question, null, null, Arg.Any<CancellationToken>()).Returns(new[] { match });
+        _codeQueryService.QueryAsync(
+            projectId, question, null, null, null, null, null, null, null, null, Arg.Any<CancellationToken>())
+            .Returns(new[] { match });
 
         var result = await _sut.QueryProjectCodeAsync(projectId, question, cancellationToken: CancellationToken.None);
 
@@ -53,7 +55,8 @@ public sealed class CodeQueryToolsTests
     public async Task Should_ThrowMcpException_When_ProjectDoesNotExist()
     {
         const long projectId = 999;
-        _codeQueryService.QueryAsync(projectId, "question", null, null, Arg.Any<CancellationToken>())
+        _codeQueryService.QueryAsync(
+            projectId, "question", null, null, null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(CodeQueryFailures.ProjectNotFound(projectId));
 
         var exception = await Should.ThrowAsync<McpException>(
@@ -65,7 +68,8 @@ public sealed class CodeQueryToolsTests
     [Fact]
     public async Task Should_ThrowMcpException_When_QuestionIsBlank()
     {
-        _codeQueryService.QueryAsync(1, "   ", null, null, Arg.Any<CancellationToken>())
+        _codeQueryService.QueryAsync(
+            1, "   ", null, null, null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(CodeQueryFailures.QuestionRequired);
 
         await Should.ThrowAsync<McpException>(
@@ -79,11 +83,45 @@ public sealed class CodeQueryToolsTests
         const string question = "where is the discount logic?";
         const int limit = 5;
         const double minSimilarity = 0.5;
-        _codeQueryService.QueryAsync(projectId, question, limit, minSimilarity, Arg.Any<CancellationToken>())
+        _codeQueryService.QueryAsync(
+            projectId, question, limit, minSimilarity, null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CodeQueryResult>());
 
-        await _sut.QueryProjectCodeAsync(projectId, question, limit, minSimilarity, CancellationToken.None);
+        await _sut.QueryProjectCodeAsync(projectId, question, limit, minSimilarity, cancellationToken: CancellationToken.None);
 
-        await _codeQueryService.Received(1).QueryAsync(projectId, question, limit, minSimilarity, Arg.Any<CancellationToken>());
+        await _codeQueryService.Received(1).QueryAsync(
+            projectId, question, limit, minSimilarity, null, null, null, null, null, null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_PassKindNamespaceTypeNameFilters_When_Provided()
+    {
+        const long projectId = 1;
+        const string question = "where is the discount logic?";
+        _codeQueryService.QueryAsync(
+            projectId, question, null, null,
+            KindFilterOperator.Equals, "function",
+            NamespaceFilterOperator.Contains, "Billing",
+            TypeNameFilterOperator.NotContains, "Controller",
+            Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<CodeQueryResult>());
+
+        await _sut.QueryProjectCodeAsync(
+            projectId,
+            question,
+            kindOperator: KindFilterOperator.Equals,
+            kindValue: "function",
+            namespaceOperator: NamespaceFilterOperator.Contains,
+            namespaceValue: "Billing",
+            typeNameOperator: TypeNameFilterOperator.NotContains,
+            typeNameValue: "Controller",
+            cancellationToken: CancellationToken.None);
+
+        await _codeQueryService.Received(1).QueryAsync(
+            projectId, question, null, null,
+            KindFilterOperator.Equals, "function",
+            NamespaceFilterOperator.Contains, "Billing",
+            TypeNameFilterOperator.NotContains, "Controller",
+            Arg.Any<CancellationToken>());
     }
 }

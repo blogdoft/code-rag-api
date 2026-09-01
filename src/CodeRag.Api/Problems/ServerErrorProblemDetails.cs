@@ -9,7 +9,12 @@ namespace CodeRag.Api.Problems;
 /// </summary>
 public sealed class ServerErrorProblemDetails : ProblemDetails
 {
+    /// <summary>Details of the unhandled exception that caused the request to fail.</summary>
     public ExceptionDetails Exception { get; init; } = null!;
 
+    /// <summary>Details of the unhandled exception that caused the request to fail.</summary>
+    /// <param name="exceptionType">Fully-qualified type name of the exception that was raised.</param>
+    /// <param name="message">The exception's message.</param>
+    /// <param name="stackTrace">The exception's captured stack trace.</param>
     public sealed record ExceptionDetails(string exceptionType, string message, string? stackTrace);
 }

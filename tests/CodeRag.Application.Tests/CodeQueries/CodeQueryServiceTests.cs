@@ -41,7 +41,7 @@ public sealed class CodeQueryServiceTests
     {
         await _sut.QueryAsync(1, string.Empty);
 
-        await _projectsRepository.DidNotReceive().ExistsAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+        await _projectsRepository.DidNotReceive().GetByIdAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class CodeQueryServiceTests
 
         await _sut.QueryAsync(1, tooLong);
 
-        await _projectsRepository.DidNotReceive().ExistsAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+        await _projectsRepository.DidNotReceive().GetByIdAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class CodeQueryServiceTests
         var atLimit = new string('a', CodeQueryService.MaxQuestionLength);
         var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
 
-        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(atLimit, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
             projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
@@ -86,7 +86,7 @@ public sealed class CodeQueryServiceTests
     [Fact]
     public async Task Should_ReturnNotFoundFailure_When_ProjectDoesNotExist()
     {
-        _projectsRepository.ExistsAsync(42, Arg.Any<CancellationToken>()).Returns(false);
+        _projectsRepository.GetByIdAsync(42, Arg.Any<CancellationToken>()).Returns((Project?)null);
 
         var result = await _sut.QueryAsync(42, "where is the discount logic?");
 
@@ -97,7 +97,7 @@ public sealed class CodeQueryServiceTests
     [Fact]
     public async Task Should_NotGenerateEmbedding_When_ProjectDoesNotExist()
     {
-        _projectsRepository.ExistsAsync(42, Arg.Any<CancellationToken>()).Returns(false);
+        _projectsRepository.GetByIdAsync(42, Arg.Any<CancellationToken>()).Returns((Project?)null);
 
         await _sut.QueryAsync(42, "where is the discount logic?");
 
@@ -112,7 +112,7 @@ public sealed class CodeQueryServiceTests
         var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
         var expected = CreateResults(2);
 
-        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(question, Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
             projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.ResultLimit, null, Arg.Any<CancellationToken>())
@@ -129,7 +129,7 @@ public sealed class CodeQueryServiceTests
     {
         const long projectId = 7;
         var embedding = new EmbeddingVector([1f, 2f, 3f]);
-        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
             Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
@@ -171,7 +171,7 @@ public sealed class CodeQueryServiceTests
         const int limit = 25;
         const double minSimilarity = 0.6;
         var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
-        _projectsRepository.ExistsAsync(projectId, Arg.Any<CancellationToken>()).Returns(true);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(
             Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
@@ -182,6 +182,70 @@ public sealed class CodeQueryServiceTests
         await _codeDocumentsRepository.Received(1).SearchAsync(
             projectId, "Ollama", "bge-m3", 3, embedding.values, limit, minSimilarity, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Should_MapProjectGitUrlAndConcatenateGitRawUrlWithSourceFile_When_ProjectHasGitUrls()
+    {
+        const long projectId = 1;
+        const string gitUrl = "https://github.com/example-org/shopping-cart-service.git";
+        const string gitRawUrl = "https://raw.githubusercontent.com/example-org/shopping-cart-service/main";
+        const string sourceFile = "src/cart/pricing/discount_calculator.py";
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>())
+            .Returns(new Project(projectId, "shopping-cart-service", gitUrl, gitRawUrl, DateTime.UtcNow));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            .Returns([new CodeQueryResult(1, sourceFile, "function", "DiscountCalculator", "apply", "some text", 0.9)]);
+
+        var result = await _sut.QueryAsync(projectId, "some question");
+
+        var mapped = result.Value.Single();
+        mapped.GitUrl.ShouldBe(gitUrl);
+        mapped.GitRawUrl.ShouldBe($"{gitRawUrl}/{sourceFile}");
+    }
+
+    [Fact]
+    public async Task Should_ReturnNullGitRawUrl_When_ProjectGitRawUrlIsNull()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>())
+            .Returns(new Project(projectId, "shopping-cart-service", null, null, DateTime.UtcNow));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            .Returns([new CodeQueryResult(1, "src/cart/pricing/discount_calculator.py", "function", "DiscountCalculator", "apply", "some text", 0.9)]);
+
+        var result = await _sut.QueryAsync(projectId, "some question");
+
+        var mapped = result.Value.Single();
+        mapped.GitUrl.ShouldBeNull();
+        mapped.GitRawUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Should_ReturnNullGitRawUrl_When_SourceFileIsNull()
+    {
+        const long projectId = 1;
+        const string gitRawUrl = "https://raw.githubusercontent.com/example-org/shopping-cart-service/main";
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>())
+            .Returns(new Project(projectId, "shopping-cart-service", null, gitRawUrl, DateTime.UtcNow));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
+            .Returns([new CodeQueryResult(1, null, "function", "DiscountCalculator", "apply", "some text", 0.9)]);
+
+        var result = await _sut.QueryAsync(projectId, "some question");
+
+        result.Value.Single().GitRawUrl.ShouldBeNull();
+    }
+
+    private Project CreateProject(long id) => new(id, _faker.Company.CompanyName(), null, null, DateTime.UtcNow);
 
     private CodeQueryResult[] CreateResults(int count) =>
         Enumerable.Range(1, count)

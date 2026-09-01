@@ -5,16 +5,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>27fc462a-4137-4b87-b7b7-7bb7e33e5693</UserSecretsId>
+    <!-- Required for AddOpenApi() to pick up XML doc comments as operation/schema descriptions. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.11.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Roslynator.Analyzers" Version="5.0.0" />
     <PackageReference Include="Roslynator.CodeFixes" Version="5.0.0" />
     <PackageReference Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.2.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />

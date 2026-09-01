@@ -1,4 +1,5 @@
 using CodeRag.Api.Filters;
+using CodeRag.Api.OpenApi;
 using CodeRag.Application;
 using CodeRag.Embeddings.Abstraction;
 using CodeRag.Embeddings.Local;
@@ -86,7 +87,40 @@ try
         options.SuppressMapClientErrors = true;
     });
 
-    builder.Services.AddOpenApi();
+    // Swashbuckle (not the built-in Microsoft.AspNetCore.OpenApi generator) because it's the one
+    // that actually reads the XML doc file - Microsoft.AspNetCore.OpenApi only picks up XML
+    // comments starting with .NET 10, and this solution targets net9.0.
+    const string ApiDescription = """
+        API for managing indexed code projects and querying their vectorized source code using
+        natural language. Projects support full CRUD via POST/GET/PUT/DELETE /projects. The
+        service stores per-project code documents (functions, types, members, etc.) along with
+        vector embeddings, and allows retrieving the most semantically similar pieces of code for
+        a given natural language question via a pgvector-backed similarity search.
+
+        All endpoints exclusively accept and return application/json. Client errors and server
+        errors are reported using the RFC 7807 "Problem Details for HTTP APIs" format, with the
+        exception of 404 responses, which are returned with no response body.
+        """;
+
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new() { Title = "Code RAG API", Version = "1.0.0", Description = ApiDescription });
+
+        // Group by ApiExplorerSettings.GroupName (e.g. "Code Query") instead of the raw
+        // controller name (e.g. "CodeQueries"), falling back to the latter when unset. Swashbuckle
+        // also (ab)uses GroupName to decide which SwaggerDoc an action belongs to by default, so
+        // without this override every action outside the "v1" group name would be dropped.
+        options.TagActionsBy(api =>
+        {
+            var controllerName = api.ActionDescriptor.RouteValues["controller"];
+            return [api.GroupName ?? controllerName ?? "Default"];
+        });
+        options.DocInclusionPredicate((_, _) => true);
+
+        var xmlDocPath = Path.Combine(AppContext.BaseDirectory, "CodeRag.Api.xml");
+        options.IncludeXmlComments(xmlDocPath);
+        options.DocumentFilter<ControllerTagDescriptionsDocumentFilter>(xmlDocPath);
+    });
 
     builder.Services.AddCors(options =>
     {
@@ -146,8 +180,8 @@ try
 
     if (app.Environment.IsDevelopment())
     {
-        app.MapOpenApi();
-        app.MapScalarApiReference();
+        app.UseSwagger();
+        app.MapScalarApiReference(options => options.WithOpenApiRoutePattern("/swagger/v1/swagger.json"));
     }
 
     app.UseSerilogRequestLogging();

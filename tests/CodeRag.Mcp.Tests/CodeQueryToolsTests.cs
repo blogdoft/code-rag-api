@@ -24,7 +24,15 @@ public sealed class CodeQueryToolsTests
         const long projectId = 1;
         const string question = "where is the discount logic?";
         var match = new CodeQueryResult(
-            1, _faker.System.FilePath(), "function", _faker.Hacker.Noun(), _faker.Hacker.Verb(), _faker.Lorem.Sentence(), 0.9);
+            1,
+            _faker.System.FilePath(),
+            "function",
+            _faker.Hacker.Noun(),
+            _faker.Hacker.Verb(),
+            _faker.Lorem.Sentence(),
+            0.9,
+            _faker.Internet.Url(),
+            _faker.Internet.Url());
         _codeQueryService.QueryAsync(projectId, question, null, null, Arg.Any<CancellationToken>()).Returns(new[] { match });
 
         var result = await _sut.QueryProjectCodeAsync(projectId, question, cancellationToken: CancellationToken.None);
@@ -32,6 +40,8 @@ public sealed class CodeQueryToolsTests
         var item = result.ShouldHaveSingleItem();
         item.Id.ShouldBe(match.Id);
         item.SourceFile.ShouldBe(match.SourceFile);
+        item.GitRawUrl.ShouldBe(match.GitRawUrl);
+        item.GitUrl.ShouldBe(match.GitUrl);
         item.Kind.ShouldBe(match.Kind);
         item.TypeName.ShouldBe(match.TypeName);
         item.Member.ShouldBe(match.Member);

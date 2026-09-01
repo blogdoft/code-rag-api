@@ -43,6 +43,8 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
     private static CodeQueryToolResult ToToolResult(CodeQueryResult result) => new(
         result.Id,
         result.SourceFile,
+        result.GitRawUrl,
+        result.GitUrl,
         result.Kind,
         result.TypeName,
         result.Member,

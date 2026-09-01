@@ -7,6 +7,8 @@ namespace CodeRag.Mcp.Tools;
 public sealed record CodeQueryToolResult(
     long Id,
     string? SourceFile,
+    string? GitRawUrl,
+    string? GitUrl,
     string Kind,
     string? TypeName,
     string? Member,

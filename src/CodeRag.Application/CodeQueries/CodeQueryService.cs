@@ -45,8 +45,8 @@ public sealed class CodeQueryService(
             return CodeQueryFailures.MinSimilarityOutOfRange;
         }
 
-        var projectExists = await projectsRepository.ExistsAsync(projectId, cancellationToken);
-        if (!projectExists)
+        var project = await projectsRepository.GetByIdAsync(projectId, cancellationToken);
+        if (project is null)
         {
             return CodeQueryFailures.ProjectNotFound(projectId);
         }
@@ -67,6 +67,14 @@ public sealed class CodeQueryService(
             minSimilarity,
             cancellationToken);
 
-        return Result<IEnumerable<CodeQueryResult>>.FromSuccess(results);
+        var resultsWithGitLinks = results.Select(result => result with
+        {
+            GitUrl = project.GitUrl,
+            GitRawUrl = project.GitRawUrl is null || result.SourceFile is null
+                ? null
+                : $"{project.GitRawUrl}/{result.SourceFile}",
+        });
+
+        return Result<IEnumerable<CodeQueryResult>>.FromSuccess(resultsWithGitLinks);
     }
 }

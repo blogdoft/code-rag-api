@@ -35,6 +35,9 @@
     <ProjectReference Include="..\CodeRag.Embeddings.Local\CodeRag.Embeddings.Local.csproj" />
     <ProjectReference Include="..\CodeRag.Embeddings.Ollama\CodeRag.Embeddings.Ollama.csproj" />
     <ProjectReference Include="..\CodeRag.Embeddings.OpenAI\CodeRag.Embeddings.OpenAI.csproj" />
+    <ProjectReference Include="..\CodeRag.Reranking.Abstraction\CodeRag.Reranking.Abstraction.csproj" />
+    <ProjectReference Include="..\CodeRag.Reranking.Ollama\CodeRag.Reranking.Ollama.csproj" />
+    <ProjectReference Include="..\CodeRag.Reranking.Cohere\CodeRag.Reranking.Cohere.csproj" />
     <ProjectReference Include="..\CodeRag.Mcp\CodeRag.Mcp.csproj" />
   </ItemGroup>
 

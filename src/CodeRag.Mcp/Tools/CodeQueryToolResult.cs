@@ -13,5 +13,6 @@ public sealed record CodeQueryToolResult(
     string? TypeName,
     string? Member,
     string EmbeddingText,
-    double Similarity);
+    double Similarity,
+    double? RerankScore);
 #pragma warning restore SA1313

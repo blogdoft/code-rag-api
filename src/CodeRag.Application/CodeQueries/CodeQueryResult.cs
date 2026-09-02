@@ -16,5 +16,6 @@ public sealed record CodeQueryResult(
     string EmbeddingText,
     double Similarity,
     string? GitUrl = null,
-    string? GitRawUrl = null);
+    string? GitRawUrl = null,
+    double? RerankScore = null);
 #pragma warning restore SA1313

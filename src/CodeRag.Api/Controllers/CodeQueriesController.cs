@@ -90,5 +90,6 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
         result.TypeName,
         result.Member,
         result.EmbeddingText,
-        result.Similarity);
+        result.Similarity,
+        result.RerankScore);
 }

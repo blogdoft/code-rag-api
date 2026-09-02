@@ -2,6 +2,7 @@ using Bogus;
 using CodeRag.Application.CodeQueries;
 using CodeRag.Application.Projects;
 using CodeRag.Embeddings.Abstraction;
+using CodeRag.Reranking.Abstraction;
 using NSubstitute;
 using Shouldly;
 
@@ -12,16 +13,25 @@ public sealed class CodeQueryServiceTests
     private readonly IProjectsRepository _projectsRepository = Substitute.For<IProjectsRepository>();
     private readonly ICodeDocumentsRepository _codeDocumentsRepository = Substitute.For<ICodeDocumentsRepository>();
     private readonly IEmbeddingGenerator _embeddingGenerator = Substitute.For<IEmbeddingGenerator>();
+    private readonly IReranker _reranker = Substitute.For<IReranker>();
     private readonly Faker _faker = new();
     private readonly CodeQueryService _sut;
 
     public CodeQueryServiceTests()
     {
-        _sut = new CodeQueryService(_projectsRepository, _codeDocumentsRepository, _embeddingGenerator);
+        _sut = new CodeQueryService(_projectsRepository, _codeDocumentsRepository, _embeddingGenerator, _reranker);
 
         _embeddingGenerator.Provider.Returns("Ollama");
         _embeddingGenerator.Model.Returns("bge-m3");
         _embeddingGenerator.Dimensions.Returns(3);
+
+        // Pass-through reranker (mirrors NoOpReranker): CandidatePoolSize 0 keeps searchLimit ==
+        // effectiveLimit for every existing test's SearchAsync assertions, and RerankAsync
+        // returns every candidate unchanged, in order, unscored.
+        _reranker.CandidatePoolSize.Returns(0);
+        _reranker.RerankAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<RerankCandidate>>(), Arg.Any<CancellationToken>())
+            .Returns(call => Task.FromResult<IReadOnlyList<RerankedCandidate>>(
+                ((IReadOnlyList<RerankCandidate>)call[1]).Select(c => new RerankedCandidate(c.Id, null)).ToList()));
     }
 
     [Theory]
@@ -354,6 +364,117 @@ public sealed class CodeQueryServiceTests
         var result = await _sut.QueryAsync(projectId, "some question");
 
         result.Value.Single().GitRawUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Should_ExpandSearchLimitToCandidatePoolSize_When_RerankerRequestsMoreCandidates()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        _reranker.CandidatePoolSize.Returns(25);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _sut.QueryAsync(projectId, "some question");
+
+        await _codeDocumentsRepository.Received(1).SearchAsync(
+            projectId, "Ollama", "bge-m3", 3, embedding.values, 25, null,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_CapSearchLimitAtMaxCandidatePoolSize_When_RerankerRequestsAnExcessivePoolSize()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        _reranker.CandidatePoolSize.Returns(CodeQueryService.MaxCandidatePoolSize + 1000);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        await _sut.QueryAsync(projectId, "some question");
+
+        await _codeDocumentsRepository.Received(1).SearchAsync(
+            projectId, "Ollama", "bge-m3", 3, embedding.values, CodeQueryService.MaxCandidatePoolSize, null,
+            null, null, null, null, null, null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_ReorderResultsByRerankScore_When_RerankerReturnsDifferentOrder()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        var first = new CodeQueryResult(1, "a.py", "function", "A", "a", "text a", 0.9);
+        var second = new CodeQueryResult(2, "b.py", "function", "B", "b", "text b", 0.8);
+        _reranker.CandidatePoolSize.Returns(25);
+        _reranker.RerankAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<RerankCandidate>>(), Arg.Any<CancellationToken>())
+            .Returns([new RerankedCandidate(2, 0.95), new RerankedCandidate(1, 0.1)]);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([first, second]);
+
+        var result = await _sut.QueryAsync(projectId, "some question");
+
+        var ordered = result.Value.ToList();
+        ordered[0].Id.ShouldBe(2);
+        ordered[0].RerankScore.ShouldBe(0.95);
+        ordered[1].Id.ShouldBe(1);
+        ordered[1].RerankScore.ShouldBe(0.1);
+    }
+
+    [Fact]
+    public async Task Should_TruncateToRequestedLimit_When_RerankerReturnsMoreCandidatesThanTheLimit()
+    {
+        const long projectId = 1;
+        const int limit = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        var first = new CodeQueryResult(1, "a.py", "function", "A", "a", "text a", 0.9);
+        var second = new CodeQueryResult(2, "b.py", "function", "B", "b", "text b", 0.8);
+        _reranker.CandidatePoolSize.Returns(25);
+        _reranker.RerankAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<RerankCandidate>>(), Arg.Any<CancellationToken>())
+            .Returns([new RerankedCandidate(2, 0.95), new RerankedCandidate(1, 0.1)]);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([first, second]);
+
+        var result = await _sut.QueryAsync(projectId, "some question", limit: limit);
+
+        result.Value.Single().Id.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Should_LeaveRerankScoreNull_When_RerankerDoesNotScoreCandidates()
+    {
+        const long projectId = 1;
+        var embedding = new EmbeddingVector([0.1f, 0.2f, 0.3f]);
+        _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
+        _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
+        _codeDocumentsRepository.SearchAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<float>>(), Arg.Any<int>(), Arg.Any<double?>(),
+            Arg.Any<KindFilterOperator?>(), Arg.Any<string?>(), Arg.Any<NamespaceFilterOperator?>(), Arg.Any<string?>(), Arg.Any<TypeNameFilterOperator?>(), Arg.Any<string?>(),
+            Arg.Any<CancellationToken>())
+            .Returns([new CodeQueryResult(1, "a.py", "function", "A", "a", "text a", 0.9)]);
+
+        var result = await _sut.QueryAsync(projectId, "some question");
+
+        result.Value.Single().RerankScore.ShouldBeNull();
     }
 
     private Project CreateProject(long id) => new(id, _faker.Company.CompanyName(), null, null, DateTime.UtcNow);

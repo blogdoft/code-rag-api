@@ -6,6 +6,9 @@ using CodeRag.Embeddings.Local;
 using CodeRag.Embeddings.Ollama;
 using CodeRag.Embeddings.OpenAI;
 using CodeRag.Infrastructure.Database;
+using CodeRag.Reranking.Abstraction;
+using CodeRag.Reranking.Cohere;
+using CodeRag.Reranking.Ollama;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
@@ -161,6 +164,10 @@ try
     builder.Services.AddOllamaEmbeddingProvider();
     builder.Services.AddOpenAIEmbeddingProvider();
 
+    builder.Services.AddRerankingAbstraction(builder.Configuration);
+    builder.Services.AddOllamaRerankerProvider();
+    builder.Services.AddCohereRerankerProvider();
+
     // Exposes the same Projects/Code Query functionality as MCP tools, for LLM clients doing
     // code research, alongside the REST API. Stateless by default: no session affinity needed
     // since these tools never need to message the client back (no sampling/elicitation).
@@ -174,6 +181,11 @@ try
     // LocalModelPath, unreadable local model files, ...) to crash startup instead of surfacing
     // as a raw 500 on the first /code-queries request.
     app.Services.GetRequiredService<IEmbeddingGenerator>();
+
+    // Same fail-fast rationale as above, with one difference: an empty/"None" Reranking:Provider
+    // is a valid, supported "disabled" configuration and resolves to a NoOpReranker without
+    // throwing - only an unknown, non-empty provider name (a config typo) crashes startup here.
+    app.Services.GetRequiredService<IReranker>();
 
     if (isRunningInKubernetes)
     {

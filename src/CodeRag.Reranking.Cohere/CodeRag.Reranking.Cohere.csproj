@@ -1,13 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\CodeRag.Embeddings.Abstraction\CodeRag.Embeddings.Abstraction.csproj" />
     <ProjectReference Include="..\CodeRag.Reranking.Abstraction\CodeRag.Reranking.Abstraction.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BlogDoFT.Libs.ResultPattern" Version="1.11.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.19" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.19" />
     <PackageReference Include="Roslynator.Analyzers" Version="5.0.0" />
     <PackageReference Include="Roslynator.CodeFixes" Version="5.0.0" />
     <PackageReference Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />

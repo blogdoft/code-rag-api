@@ -37,6 +37,10 @@ namespace CodeRag.Api.Contracts;
 /// Cosine similarity between the query's embedding vector and this document's stored embedding.
 /// Ranges from 1.0 (identical) to -1.0 (opposite); higher values indicate closer semantic matches.
 /// </param>
+/// <param name="RerankScore">
+/// Relevance score assigned by the reranking stage, normalized to 0.0-1.0 (higher is more
+/// relevant). Null when reranking is disabled (the default) or not configured.
+/// </param>
 // SA1313 wants these lower-case, but positional record parameters are also the record's public
 // properties - the standard .NET convention (and every consumer's expectation) is PascalCase.
 #pragma warning disable SA1313
@@ -49,5 +53,6 @@ public sealed record CodeQueryResultResponse(
     string? TypeName,
     string? Member,
     string EmbeddingText,
-    double Similarity);
+    double Similarity,
+    double? RerankScore);
 #pragma warning restore SA1313

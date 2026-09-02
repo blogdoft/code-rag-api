@@ -14,6 +14,7 @@ LLM clients doing code research.
 | API | `CodeRag.Api` | ASP.NET Core startup, controllers, RFC 7807 error formatting |
 | Application | `CodeRag.Application` | Business logic (`ProjectsService`, `CodeQueryService`), domain validation |
 | Embeddings | `CodeRag.Embeddings.Abstraction/.Local/.Ollama/.OpenAI` | Provider-agnostic embedding generation, selected at runtime by config |
+| Reranking | `CodeRag.Reranking.Abstraction/.Ollama/.Cohere` | Optional reranking of vector-search candidates, selected at runtime by config; disabled by default |
 | Infrastructure | `CodeRag.Infrastructure.Database` | Dapper/Npgsql/pgvector repositories |
 | MCP | `CodeRag.Mcp` | MCP tools wrapping the Application layer for LLM clients |
 
@@ -47,6 +48,47 @@ dotnet run --project src/CodeRag.Api
 - `Embeddings:Model`, `Embeddings:Dimensions`, `Embeddings:Normalized` — must match a row in `embedding_models`.
 - `Embeddings:BaseUrl` / `Embeddings:ApiKey` — used by the Ollama/OpenAI providers.
 - `Embeddings:LocalModelPath` — directory containing `model.onnx` + `vocab.txt`, used by the Local provider.
+- `Reranking:Provider` — empty (default) or `None` disables reranking; `Ollama` or `Cohere` enables it.
+- `Reranking:Model`, `Reranking:BaseUrl` / `Reranking:ApiKey` — used by the Ollama/Cohere providers.
+- `Reranking:CandidatePoolSize` — how many top vector-search results to rerank before truncating to the caller's requested limit (default 25).
+- `Reranking:MaxConcurrency` — max concurrent scoring calls issued to the provider (Ollama's pointwise strategy; default 4).
+
+## Enabling reranking with Ollama
+
+Reranking is disabled by default (`Reranking:Provider` empty). To turn it on against an
+Ollama instance, pull a **chat/instruct** model — not an embedding model. The embedding
+model already configured under `Embeddings:Model` (e.g. `bge-m3`) cannot be reused here:
+`CodeRag.Reranking.Ollama` scores candidates by prompting the model for a relevance grade,
+which requires instruction-following, something embedding-only models don't support.
+
+```bash
+# against the docker-compose Ollama service
+docker compose exec ollama ollama pull qwen2.5:7b-instruct
+
+# against your own Ollama host
+ollama pull qwen2.5:7b-instruct
+```
+
+Any reasonably small instruct model works — pick one that fits your hardware and is
+already available in your Ollama registry (`qwen2.5:7b-instruct`, `llama3.1:8b-instruct`,
+`phi4`, etc.). Larger models score more accurately but add latency per query, since one
+candidate is scored per call.
+
+Then point the app at it, either in `appsettings.json` or via environment variables:
+
+```bash
+Reranking__Provider=Ollama
+Reranking__Model=qwen2.5:7b-instruct
+Reranking__BaseUrl=http://localhost:11434
+dotnet run --project src/CodeRag.Api
+```
+
+With reranking enabled, each `code-queries`/`query_project_code` call fetches
+`Reranking:CandidatePoolSize` candidates from the vector search (instead of just the
+requested `limit`), scores every one of them against the question, and returns the
+top-`limit` by score — each result's `rerank_score` field reflects the grade it received
+(`0.0`-`1.0`), and is `null` whenever reranking is disabled. Lower `Reranking:MaxConcurrency`
+if your Ollama host can't keep up with parallel scoring requests.
 
 ## REST API
 

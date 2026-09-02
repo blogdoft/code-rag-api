@@ -1,0 +1,26 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace CodeRag.Reranking.Abstraction;
+
+public static class ServiceCollectionExtensions
+{
+    /// <summary>
+    /// Binds <see cref="RerankingOptions"/> and registers the machinery that resolves the
+    /// configured <see cref="IReranker"/>. Call this alongside each provider's own registration
+    /// extension (e.g. <c>AddOllamaRerankerProvider</c>) - the provider itself only needs to
+    /// exist in the container, this is what decides which one is actually used.
+    /// </summary>
+    /// <param name="services">Service collection to register into.</param>
+    /// <param name="configuration">Configuration root the "Reranking" section is bound from.</param>
+    public static IServiceCollection AddRerankingAbstraction(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<RerankingOptions>(configuration.GetSection(RerankingOptions.SectionName));
+        services.AddSingleton<RerankerResolver>();
+        services.AddSingleton(sp => sp.GetRequiredService<RerankerResolver>().Resolve());
+
+        return services;
+    }
+}

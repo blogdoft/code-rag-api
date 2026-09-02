@@ -87,5 +87,6 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
         result.TypeName,
         result.Member,
         result.EmbeddingText,
-        result.Similarity);
+        result.Similarity,
+        result.RerankScore);
 }

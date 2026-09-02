@@ -308,6 +308,11 @@ components:
           type: number
           description: "Cosine similarity between the query's embedding vector and this document's stored embedding.\nRanges from 1.0 (identical) to -1.0 (opposite); higher values indicate closer semantic matches."
           format: double
+        rerank_score:
+          type: number
+          description: "Relevance score assigned by the reranking stage, normalized to 0.0-1.0 (higher is more\nrelevant). Null when reranking is disabled (the default) or not configured."
+          format: double
+          nullable: true
       additionalProperties: false
       description: "A single code document matched against a natural language query, annotated with its computed\nsimilarity score. Serializes as snake_case, except `gitRawUrl`/`gitUrl` which are\ncamelCase per the OpenAPI contract."
     CodeQueryTypeNameFilterRequest:

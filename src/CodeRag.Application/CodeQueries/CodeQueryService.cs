@@ -1,19 +1,29 @@
 using BlogDoFT.Libs.ResultPattern;
 using CodeRag.Application.Projects;
 using CodeRag.Embeddings.Abstraction;
+using CodeRag.Reranking.Abstraction;
 
 namespace CodeRag.Application.CodeQueries;
 
 public sealed class CodeQueryService(
     IProjectsRepository projectsRepository,
     ICodeDocumentsRepository codeDocumentsRepository,
-    IEmbeddingGenerator embeddingGenerator) : ICodeQueryService
+    IEmbeddingGenerator embeddingGenerator,
+    IReranker reranker) : ICodeQueryService
 {
     /// <summary>Matches the <c>LIMIT 10</c> used in the reference similarity query.</summary>
     public const int ResultLimit = 10;
 
     /// <summary>Upper bound accepted for an explicit <c>limit</c>, to keep a single query cheap.</summary>
     public const int MaxResultLimit = 50;
+
+    /// <summary>
+    /// Defensive ceiling on how many candidates a reranker's <see cref="IReranker.CandidatePoolSize"/>
+    /// can pull from the vector search, independent of <see cref="MaxResultLimit"/> (which only
+    /// bounds the caller-supplied <c>limit</c>). Guards against a misconfigured, very large pool
+    /// size turning every query into an expensive full-table-ish scan.
+    /// </summary>
+    public const int MaxCandidatePoolSize = 200;
 
     /// <summary>Generous cap on a natural-language question; guards against embedding-cost abuse and token-limit overruns.</summary>
     public const int MaxQuestionLength = 1000;
@@ -75,13 +85,19 @@ public sealed class CodeQueryService(
         // domain-modeled outcomes exposed by the OpenAPI contract (400 / 404).
         var queryEmbedding = await embeddingGenerator.GenerateAsync(question, cancellationToken);
 
-        var results = await codeDocumentsRepository.SearchAsync(
+        var effectiveLimit = limit ?? ResultLimit;
+
+        // When reranking is disabled, CandidatePoolSize is 0, so this collapses back to
+        // effectiveLimit - zero extra DB cost versus before reranking existed.
+        var searchLimit = Math.Min(Math.Max(effectiveLimit, reranker.CandidatePoolSize), MaxCandidatePoolSize);
+
+        var results = (await codeDocumentsRepository.SearchAsync(
             projectId,
             embeddingGenerator.Provider,
             embeddingGenerator.Model,
             embeddingGenerator.Dimensions,
             queryEmbedding.values,
-            limit ?? ResultLimit,
+            searchLimit,
             minSimilarity,
             kindOperator,
             kindValue,
@@ -89,9 +105,22 @@ public sealed class CodeQueryService(
             namespaceValue,
             typeNameOperator,
             typeNameValue,
+            cancellationToken)).ToList();
+
+        // Reranking always runs, even when disabled: a NoOpReranker returns every candidate
+        // unchanged in its original order with a null score, so there is no branching here on
+        // whether reranking is actually configured.
+        var rerankedCandidates = await reranker.RerankAsync(
+            question,
+            results.ConvertAll(result => new RerankCandidate(result.Id, result.EmbeddingText)),
             cancellationToken);
 
-        var resultsWithGitLinks = results.Select(result => result with
+        var resultsById = results.ToDictionary(result => result.Id);
+        var rerankedResults = rerankedCandidates
+            .Select(candidate => resultsById[candidate.Id] with { RerankScore = candidate.Score })
+            .Take(effectiveLimit);
+
+        var resultsWithGitLinks = rerankedResults.Select(result => result with
         {
             GitUrl = project.GitUrl,
             GitRawUrl = project.GitRawUrl is null || result.SourceFile is null

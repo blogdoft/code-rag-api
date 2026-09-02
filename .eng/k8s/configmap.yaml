@@ -16,5 +16,5 @@ data:
   Embeddings__TimeoutSeconds: "30"
   Reranking__Provider: "Ollama"
   Reranking__Model: "qwen2.5:7b-instruct"
-  Reranking__BaseUrl: "http://localhost:11434"
+  Reranking__BaseUrl: "http://192.168.1.212:11434"
   

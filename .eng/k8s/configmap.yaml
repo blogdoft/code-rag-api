@@ -14,3 +14,7 @@ data:
   Embeddings__Dimensions: "1024"
   Embeddings__Normalized: "true"
   Embeddings__TimeoutSeconds: "30"
+  Reranking__Provider: "Ollama"
+  Reranking__Model: "qwen2.5:7b-instruct"
+  Reranking__BaseUrl: "http://localhost:11434"
+  

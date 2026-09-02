@@ -27,8 +27,11 @@ jobs:
       - name: Build
         run: dotnet build CodeRag.sln --no-restore --configuration Release
 
+      # -m:1 serializes test projects so Testcontainers-backed projects (Postgres, OpenAI/Ollama
+      # embedding integration tests) don't pull large images concurrently and starve the shared
+      # Docker daemon - see .forgejo/workflows/docker-publish.yml for the full rationale.
       - name: Test
-        run: dotnet test CodeRag.sln --no-build --configuration Release
+        run: dotnet test CodeRag.sln --no-build --configuration Release -m:1
 
   publish:
     needs: test

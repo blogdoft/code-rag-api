@@ -31,8 +31,15 @@ jobs:
       - name: Build
         run: dotnet build CodeRag.sln --no-restore --configuration Release
 
+      # -m:1 forces MSBuild to run test projects one at a time. Several projects
+      # (CodeRag.Api.Tests, CodeRag.Infrastructure.Database.Tests, and the OpenAI/Ollama
+      # embedding integration tests) spin up Testcontainers-managed Docker containers with
+      # large images (pgvector, text-embeddings-inference). Running them in parallel on this
+      # runner's shared Docker daemon overloads it while those images pull, and
+      # container-create calls for the Postgres-backed tests time out (TaskCanceledException
+      # from Docker.DotNet) well before the images finish downloading.
       - name: Test
-        run: dotnet test CodeRag.sln --no-build --configuration Release
+        run: dotnet test CodeRag.sln --no-build --configuration Release -m:1
 
   publish:
     needs: test

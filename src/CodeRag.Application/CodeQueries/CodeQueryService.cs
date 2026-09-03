@@ -115,8 +115,17 @@ public sealed class CodeQueryService(
             results.ConvertAll(result => new RerankCandidate(result.Id, result.EmbeddingText)),
             cancellationToken);
 
+        // Enforced here rather than trusted from the reranker: IReranker.RerankAsync's contract
+        // says implementations return candidates already in descending-score order, but not
+        // every implementation guarantees that defensively (e.g. CohereReranker just trusts the
+        // Cohere API's result ordering). Sorting again here - stable, so ties keep the
+        // reranker's relative order - is what actually makes the API's descending-relevance
+        // guarantee hold regardless of which reranker is configured. A null Score (reranking
+        // disabled) sorts last for every candidate alike, so ties fall back to the original
+        // vector-search order, which is itself descending by similarity.
         var resultsById = results.ToDictionary(result => result.Id);
         var rerankedResults = rerankedCandidates
+            .OrderByDescending(candidate => candidate.Score ?? double.NegativeInfinity)
             .Select(candidate => resultsById[candidate.Id] with { RerankScore = candidate.Score })
             .Take(effectiveLimit);
 

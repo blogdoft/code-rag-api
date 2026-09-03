@@ -34,8 +34,9 @@ public sealed class CodeQueriesController(ICodeQueryService codeQueryService) : 
     /// <param name="cancellationToken">Propagates request abort/timeout to the async pipeline.</param>
     /// <response code="200">
     /// The code documents most semantically similar to the natural language question, ordered by
-    /// descending similarity. Returns an empty array when the project has no code documents, or
-    /// none are found to be similar enough to the question.
+    /// descending relevance - by rerank score when reranking is enabled, otherwise by cosine
+    /// similarity. Returns an empty array when the project has no code documents, or none are
+    /// found to be similar enough to the question.
     /// </response>
     /// <response code="400">
     /// Either the projectId path parameter is not a valid positive integer (e.g. a GUID was

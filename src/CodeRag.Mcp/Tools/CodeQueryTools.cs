@@ -14,8 +14,8 @@ public sealed class CodeQueryTools(ICodeQueryService codeQueryService)
     [Description(
         "Searches a project's indexed source code using a natural language question and returns the code " +
         "documents (functions, methods, types, etc.) whose embeddings are most semantically similar, ordered " +
-        "by descending similarity (1.0 = identical, values near or below 0 = unrelated). Use list_projects " +
-        "first to find the projectId.")]
+        "by descending relevance - by rerank score when reranking is enabled, otherwise by cosine similarity " +
+        "(1.0 = identical, values near or below 0 = unrelated). Use list_projects first to find the projectId.")]
     public async Task<IEnumerable<CodeQueryToolResult>> QueryProjectCodeAsync(
         [Description("Id of the project to search, from the list_projects tool.")]
         long projectId,

@@ -416,8 +416,12 @@ public sealed class CodeQueryServiceTests
         var first = new CodeQueryResult(1, "a.py", "function", "A", "a", "text a", 0.9);
         var second = new CodeQueryResult(2, "b.py", "function", "B", "b", "text b", 0.8);
         _reranker.CandidatePoolSize.Returns(25);
+
+        // Deliberately out of score order - a reranker (e.g. CohereReranker) trusts its
+        // upstream provider's ordering rather than sorting defensively itself, so
+        // CodeQueryService must not simply pass this list through unchanged.
         _reranker.RerankAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<RerankCandidate>>(), Arg.Any<CancellationToken>())
-            .Returns([new RerankedCandidate(2, 0.95), new RerankedCandidate(1, 0.1)]);
+            .Returns([new RerankedCandidate(1, 0.1), new RerankedCandidate(2, 0.95)]);
         _projectsRepository.GetByIdAsync(projectId, Arg.Any<CancellationToken>()).Returns(CreateProject(projectId));
         _embeddingGenerator.GenerateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(embedding);
         _codeDocumentsRepository.SearchAsync(

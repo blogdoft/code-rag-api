@@ -29,8 +29,8 @@ public sealed class RerankingOptions
     public int TimeoutSeconds { get; set; } = 60;
 
     /// <summary>How many top vector-search results to pull and rerank before truncating to the caller's limit.</summary>
-    public int CandidatePoolSize { get; set; } = 25;
+    public int CandidatePoolSize { get; set; } = 12;
 
     /// <summary>Max number of concurrent scoring calls issued to the provider (pointwise strategies only).</summary>
-    public int MaxConcurrency { get; set; } = 4;
+    public int MaxConcurrency { get; set; } = 6;
 }

@@ -6,6 +6,10 @@ metadata:
     app: code-rag-api
 spec:
   replicas: 1
+  # Kubernetes defaults to keeping 10 old, scaled-to-zero ReplicaSets around for rollback
+  # history. With CI redeploying on every push to main, that piles up fast for no real
+  # benefit here - argo-local-apps' git history already covers rollback. Keep just one.
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app: code-rag-api

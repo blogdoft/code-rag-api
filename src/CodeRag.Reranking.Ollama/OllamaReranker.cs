@@ -1,4 +1,6 @@
 using CodeRag.Reranking.Abstraction;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,11 +26,13 @@ public sealed class OllamaReranker : IReranker
 
     private readonly HttpClient _httpClient;
     private readonly RerankingOptions _options;
+    private readonly ILogger<OllamaReranker> _logger;
 
-    public OllamaReranker(HttpClient httpClient, RerankingOptions options)
+    public OllamaReranker(HttpClient httpClient, RerankingOptions options, ILogger<OllamaReranker> logger)
     {
         _httpClient = httpClient;
         _options = options;
+        _logger = logger;
     }
 
     public string Provider => "Ollama";
@@ -73,6 +77,7 @@ public sealed class OllamaReranker : IReranker
 
     private async Task<double> ScoreOneAsync(string query, RerankCandidate candidate, CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var request = new OllamaGenerateRequest(
@@ -94,10 +99,22 @@ public sealed class OllamaReranker : IReranker
             var payload = JsonSerializer.Deserialize<OllamaScorePayload>(body.Response)
                 ?? throw new RerankingException("Ollama returned an unparseable relevance score.");
 
-            return Math.Clamp(payload.Score, 0, 10) / 10.0;
+            var score = Math.Clamp(payload.Score, 0, 10) / 10.0;
+            _logger.LogInformation(
+                "Reranked candidate {CandidateId} in {ElapsedMilliseconds}ms with score {Score}",
+                candidate.Id,
+                stopwatch.ElapsedMilliseconds,
+                score);
+            return score;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException)
         {
+            _logger.LogWarning(
+                ex,
+                "Failed to rerank candidate {CandidateId} using Ollama model '{Model}' after {ElapsedMilliseconds}ms",
+                candidate.Id,
+                _options.Model,
+                stopwatch.ElapsedMilliseconds);
             throw new RerankingException($"Failed to rerank candidate {candidate.Id} using Ollama model '{_options.Model}'.", ex);
         }
     }

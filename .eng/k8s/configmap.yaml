@@ -17,7 +17,7 @@ data:
   Reranking__Provider: "Ollama"
   Reranking__Model: "qwen2.5:7b-instruct"
   Reranking__BaseUrl: "http://192.168.1.212:11434"
-  Reranking__TimeoutSeconds: "60"
+  Reranking__TimeoutSeconds: "120"
   Reranking__CandidatePoolSize: "12"
   Reranking__MaxConcurrency: "6"
 

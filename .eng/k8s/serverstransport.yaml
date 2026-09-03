@@ -1,14 +1,13 @@
-# Traefik doesn't apply a response-header timeout to backends by default (0s = unlimited),
-# but the ingress was still returning 504s under slow reranking requests - most likely from
-# whatever sits in front of this cluster's entrypoint rather than Traefik itself. Giving the
-# backend an explicit, generous budget here is the documented, per-service way to raise that
-# ceiling without touching the cluster-wide Traefik entrypoint config (out of this repo's
-# scope). Referenced from service.yaml via the
-# traefik.ingress.kubernetes.io/service.serverstransport annotation.
+# Confirmed via live testing (simulated /code-queries calls + pod logs): the app itself takes
+# this long under real reranking load (Ollama running qwen2.5:7b-instruct on CPU, no GPU -
+# see OllamaReranker's per-candidate logging). 90s wasn't enough margin - the backend was still
+# finishing its own request (and logging an internal 500, since by then Traefik had already
+# returned 504 to the client and no one was listening) up to ~90.1s in. Referenced from
+# service.yaml via the traefik.ingress.kubernetes.io/service.serverstransport annotation.
 apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
 metadata:
   name: code-rag-api-transport
 spec:
   forwardingTimeouts:
-    responseHeaderTimeout: 90s
+    responseHeaderTimeout: 120s

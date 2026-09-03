@@ -1,4 +1,5 @@
 using CodeRag.Reranking.Abstraction;
+using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 using System.Net;
 
@@ -90,7 +91,7 @@ public sealed class OllamaRerankerTests
     {
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:11434") };
         var options = new RerankingOptions { Provider = "Ollama", Model = model, CandidatePoolSize = candidatePoolSize, MaxConcurrency = 4 };
-        return new OllamaReranker(httpClient, options);
+        return new OllamaReranker(httpClient, options, NullLogger<OllamaReranker>.Instance);
     }
 
     private sealed class SequencedScoreHandler(Queue<int> scores) : HttpMessageHandler

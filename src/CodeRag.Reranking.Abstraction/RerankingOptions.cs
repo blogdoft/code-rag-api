@@ -26,7 +26,7 @@ public sealed class RerankingOptions
     public string? ApiKey { get; set; }
 
     /// <summary>Request timeout, in seconds, for HTTP-based providers.</summary>
-    public int TimeoutSeconds { get; set; } = 60;
+    public int TimeoutSeconds { get; set; } = 120;
 
     /// <summary>How many top vector-search results to pull and rerank before truncating to the caller's limit.</summary>
     public int CandidatePoolSize { get; set; } = 12;

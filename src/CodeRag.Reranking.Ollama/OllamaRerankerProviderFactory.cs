@@ -1,8 +1,10 @@
 using CodeRag.Reranking.Abstraction;
+using Microsoft.Extensions.Logging;
 
 namespace CodeRag.Reranking.Ollama;
 
-public sealed class OllamaRerankerProviderFactory(IHttpClientFactory httpClientFactory) : IRerankerProviderFactory
+public sealed class OllamaRerankerProviderFactory(IHttpClientFactory httpClientFactory, ILogger<OllamaReranker> logger)
+    : IRerankerProviderFactory
 {
     public string ProviderName => "Ollama";
 
@@ -18,6 +20,6 @@ public sealed class OllamaRerankerProviderFactory(IHttpClientFactory httpClientF
         httpClient.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
         httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 
-        return new OllamaReranker(httpClient, options);
+        return new OllamaReranker(httpClient, options, logger);
     }
 }

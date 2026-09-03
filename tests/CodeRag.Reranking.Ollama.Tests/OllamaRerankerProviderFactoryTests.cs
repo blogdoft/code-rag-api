@@ -1,5 +1,6 @@
 using CodeRag.Reranking.Abstraction;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
 namespace CodeRag.Reranking.Ollama.Tests;
@@ -12,7 +13,9 @@ public sealed class OllamaRerankerProviderFactoryTests
         var services = new ServiceCollection();
         services.AddOllamaRerankerProvider();
         var provider = services.BuildServiceProvider();
-        var factory = new OllamaRerankerProviderFactory(provider.GetRequiredService<IHttpClientFactory>());
+        var factory = new OllamaRerankerProviderFactory(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            NullLogger<OllamaReranker>.Instance);
         var options = new RerankingOptions { Provider = "Ollama", Model = "qwen2.5:7b-instruct" };
 
         Should.Throw<InvalidOperationException>(() => factory.Create(options));
@@ -24,7 +27,9 @@ public sealed class OllamaRerankerProviderFactoryTests
         var services = new ServiceCollection();
         services.AddOllamaRerankerProvider();
         var provider = services.BuildServiceProvider();
-        var factory = new OllamaRerankerProviderFactory(provider.GetRequiredService<IHttpClientFactory>());
+        var factory = new OllamaRerankerProviderFactory(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            NullLogger<OllamaReranker>.Instance);
 
         factory.ProviderName.ShouldBe("Ollama");
     }
@@ -35,7 +40,9 @@ public sealed class OllamaRerankerProviderFactoryTests
         var services = new ServiceCollection();
         services.AddOllamaRerankerProvider();
         var provider = services.BuildServiceProvider();
-        var factory = new OllamaRerankerProviderFactory(provider.GetRequiredService<IHttpClientFactory>());
+        var factory = new OllamaRerankerProviderFactory(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            NullLogger<OllamaReranker>.Instance);
         var options = new RerankingOptions
         {
             Provider = "Ollama",

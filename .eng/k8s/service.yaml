@@ -2,6 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: code-rag-api
+  annotations:
+    # Applies the code-rag-api-transport ServersTransport (serverstransport.yaml) to give
+    # Traefik a 90s response-header timeout for this backend instead of the default unlimited
+    # wait, so slow reranking requests get a bounded, generous ceiling instead of an
+    # inconsistent 504 further upstream. Format: <namespace>-<serverstransport-name>@kubernetescrd.
+    traefik.ingress.kubernetes.io/service.serverstransport: code-rag-api-code-rag-api-transport@kubernetescrd
 spec:
   selector:
     app: code-rag-api

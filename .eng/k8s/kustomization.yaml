@@ -12,6 +12,7 @@ resources:
   - service.yaml
   - configmap.yaml
   - ingress.yaml
+  - serverstransport.yaml
 
 images:
   - name: code-rag-api

@@ -266,4 +266,116 @@ public sealed class FeedbackServiceTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Weeks.ShouldBe(weeks);
     }
+
+    [Fact]
+    public async Task Should_UseStartOfCurrentMonthToNow_When_NoDatesAreGivenForExport()
+    {
+        _feedbackRepository.ExportAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var before = DateTime.UtcNow;
+        var result = await _sut.ExportAsync(null, null, null);
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.EndDate.ShouldBeInRange(before, after);
+        result.Value.StartDate.ShouldBe(new DateTime(before.Year, before.Month, 1, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task Should_DefaultEndDateToNow_When_OnlyStartDateIsGivenForExport()
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        _feedbackRepository.ExportAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var before = DateTime.UtcNow;
+        var result = await _sut.ExportAsync(start, null, null);
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.StartDate.ShouldBe(start);
+        result.Value.EndDate.ShouldBeInRange(before, after);
+    }
+
+    [Fact]
+    public async Task Should_DefaultStartDateToStartOfCurrentMonth_When_OnlyEndDateIsGivenForExport()
+    {
+        var end = DateTime.UtcNow;
+        _feedbackRepository.ExportAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.ExportAsync(null, end, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.EndDate.ShouldBe(end);
+        result.Value.StartDate.ShouldBe(new DateTime(end.Year, end.Month, 1, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task Should_UseExactWindow_When_BothDatesAreGivenForExport()
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        _feedbackRepository.ExportAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.ExportAsync(start, end, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.StartDate.ShouldBe(start);
+        result.Value.EndDate.ShouldBe(end);
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_ExportEffectiveStartDateIsAfterEndDate()
+    {
+        var start = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await _sut.ExportAsync(start, end, null);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldBe("400-invalid-date-range");
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_ExportWindowExceedsMaximum()
+    {
+        var start = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = start.AddDays(FeedbackService.MaxWindowDays + 1);
+
+        var result = await _sut.ExportAsync(start, end, null);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldBe("400-window-too-large");
+    }
+
+    [Fact]
+    public async Task Should_ReturnNotFound_When_ExportProjectIdFilterDoesNotExist()
+    {
+        _projectsRepository.GetByIdAsync(999, Arg.Any<CancellationToken>()).Returns((Project?)null);
+
+        var result = await _sut.ExportAsync(null, null, 999);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("404");
+    }
+
+    [Fact]
+    public async Task Should_ReturnRows_When_ExportProjectIdFilterExists()
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var rows = new List<FeedbackExportRow>
+        {
+            new(1, 1, "some-project", "why is this slow?", true, [0.9], null, "claude code", start.AddDays(1)),
+        };
+        _feedbackRepository.ExportAsync(start, end, 1, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.ExportAsync(start, end, 1);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Rows.ShouldBe(rows);
+    }
 }

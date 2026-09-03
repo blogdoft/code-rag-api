@@ -127,4 +127,45 @@ public sealed class FeedbackService(
 
         return Result<FeedbackStatsResult>.FromSuccess(new FeedbackStatsResult(effectiveStart, effectiveEnd, weeks));
     }
+
+    public async Task<Result<FeedbackExportResult>> ExportAsync(
+        DateTime? startDate,
+        DateTime? endDate,
+        long? projectId,
+        CancellationToken cancellationToken = default)
+    {
+        // Unlike GetStatsAsync, each side defaults independently of the other - no ±N-days
+        // derivation from whichever side was given.
+        var effectiveStart = startDate ?? StartOfCurrentUtcMonth();
+        var effectiveEnd = endDate ?? DateTime.UtcNow;
+
+        if (effectiveStart > effectiveEnd)
+        {
+            return FeedbackFailures.InvalidDateRange;
+        }
+
+        if (effectiveEnd - effectiveStart > TimeSpan.FromDays(MaxWindowDays))
+        {
+            return FeedbackFailures.WindowTooLarge;
+        }
+
+        if (projectId is not null)
+        {
+            var project = await projectsRepository.GetByIdAsync(projectId.Value, cancellationToken);
+            if (project is null)
+            {
+                return FeedbackFailures.ProjectNotFound(projectId.Value);
+            }
+        }
+
+        var rows = await feedbackRepository.ExportAsync(effectiveStart, effectiveEnd, projectId, cancellationToken);
+
+        return Result<FeedbackExportResult>.FromSuccess(new FeedbackExportResult(effectiveStart, effectiveEnd, rows));
+    }
+
+    private static DateTime StartOfCurrentUtcMonth()
+    {
+        var now = DateTime.UtcNow;
+        return new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+    }
 }

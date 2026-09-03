@@ -1,3 +1,4 @@
+using BlogDoFT.Libs.DapperUtils.Postgres;
 using CodeRag.Application.Projects;
 using Dapper;
 using Npgsql;
@@ -10,12 +11,19 @@ public sealed class ProjectsRepository(NpgsqlDataSource dataSource) : IProjectsR
         string? nameFilter,
         CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var where = new WhereBuilder().AndWith(nameFilter, "name ILIKE '%' || @NameFilter || '%'").Build();
+
+        // The interpolated fragment is limited to a fixed, developer-controlled condition that
+        // WhereBuilder either includes verbatim or omits entirely - the caller-supplied value
+        // still flows through the @NameFilter Dapper parameter below, so this isn't injectable.
+#pragma warning disable S2077
+        var sql = $"""
             SELECT id AS Id, name AS Name, git_url AS GitUrl, git_raw_url AS GitRawUrl, created_at AS CreatedAt
             FROM public.projects
-            WHERE @NameFilter::text IS NULL OR name ILIKE '%' || @NameFilter || '%'
+            {where}
             ORDER BY name
             """;
+#pragma warning restore S2077
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(sql, new { NameFilter = nameFilter }, cancellationToken: cancellationToken);
@@ -52,12 +60,22 @@ public sealed class ProjectsRepository(NpgsqlDataSource dataSource) : IProjectsR
         long? excludingProjectId = null,
         CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var where = new WhereBuilder()
+            .AndWith(name, "name = @Name")
+            .AndWith(excludingProjectId, "id <> @ExcludingProjectId")
+            .Build();
+
+        // The interpolated fragment is limited to fixed, developer-controlled conditions that
+        // WhereBuilder either includes verbatim or omits entirely - the caller-supplied values
+        // still flow through Dapper parameters below, so this isn't injectable.
+#pragma warning disable S2077
+        var sql = $"""
             SELECT EXISTS(
                 SELECT 1 FROM public.projects
-                WHERE name = @Name AND (@ExcludingProjectId::int8 IS NULL OR id <> @ExcludingProjectId)
+                {where}
             )
             """;
+#pragma warning restore S2077
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         var command = new CommandDefinition(

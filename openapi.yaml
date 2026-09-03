@@ -132,6 +132,53 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ServerErrorProblemDetails'
+  /api/v1/code-queries/feedback/export:
+    get:
+      tags:
+        - Code Query
+      summary: Export raw feedback records for a time window (and optionally a single project) as CSV
+      description: "Returns a downloadable CSV file with one row per feedback record in code_query_feedback\nwhose created_at falls within [startDate, endDate], optionally restricted to a single\nproject. Unlike GET .../feedback/stats, this endpoint returns raw, unaggregated rows\nordered by created_at ascending.\n            \nstartDate and endDate are both optional, and each side defaults independently of the other\nwhen omitted (no ±N-days derivation like GET .../feedback/stats): a missing startDate\ndefaults to the first day of the current UTC month (00:00 UTC), and a missing endDate\ndefaults to now (UTC). The effective window (endDate - startDate, after defaults are\napplied) must not exceed 366 days (12 months); exceeding it is a 400, as is an effective\nstartDate after endDate."
+      parameters:
+        - name: start_date
+          in: query
+          description: "Inclusive lower bound (UTC, ISO 8601) of the export window. Optional - defaults to the\nfirst day of the current UTC month (00:00 UTC) when omitted."
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: "Inclusive upper bound (UTC, ISO 8601) of the export window. Optional - defaults to now\n(UTC) when omitted."
+          schema:
+            type: string
+            format: date-time
+        - name: project_id
+          in: query
+          description: "Restrict the export to a single project, instead of all registered projects. Must\ncorrespond to the id field returned by GET /projects; a projectId that does not match any\nproject results in a 404."
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: "CSV file with one row per feedback record in the requested window (and project, if given),\nordered by created_at ascending."
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: "startDate or endDate is not a valid date-time, the effective startDate (after defaults are\napplied) is after the effective endDate, or the effective window exceeds 366 days. This is\nthe only client-error condition other than 404 under which this endpoint fails."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "projectId was given but does not correspond to any registered project. This is the only\ncondition under which this endpoint returns 404; the response has no body."
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
   /api/v1/projects:
     get:
       tags:

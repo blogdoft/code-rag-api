@@ -1,7 +1,11 @@
+using System.Globalization;
+using System.Text.Json;
 using BlogDoFT.Libs.ResultPattern;
 using CodeRag.Api.Contracts;
 using CodeRag.Api.Problems;
 using CodeRag.Application.Feedback;
+using CsvHelper;
+using CsvHelper.Configuration.Attributes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CodeRag.Api.Controllers;
@@ -85,6 +89,118 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
             onSuccess: stats => (IActionResult)Ok(ToResponse(stats)),
             onFailure: failure => failure.ToActionResult(HttpContext));
     }
+
+    /// <summary>Export raw feedback records for a time window (and optionally a single project) as CSV</summary>
+    /// <remarks>
+    /// Returns a downloadable CSV file with one row per feedback record in code_query_feedback
+    /// whose created_at falls within [startDate, endDate], optionally restricted to a single
+    /// project. Unlike GET .../feedback/stats, this endpoint returns raw, unaggregated rows
+    /// ordered by created_at ascending.
+    ///
+    /// startDate and endDate are both optional, and each side defaults independently of the other
+    /// when omitted (no ±N-days derivation like GET .../feedback/stats): a missing startDate
+    /// defaults to the first day of the current UTC month (00:00 UTC), and a missing endDate
+    /// defaults to now (UTC). The effective window (endDate - startDate, after defaults are
+    /// applied) must not exceed 366 days (12 months); exceeding it is a 400, as is an effective
+    /// startDate after endDate.
+    /// </remarks>
+    /// <param name="startDate">
+    /// Inclusive lower bound (UTC, ISO 8601) of the export window. Optional - defaults to the
+    /// first day of the current UTC month (00:00 UTC) when omitted.
+    /// </param>
+    /// <param name="endDate">
+    /// Inclusive upper bound (UTC, ISO 8601) of the export window. Optional - defaults to now
+    /// (UTC) when omitted.
+    /// </param>
+    /// <param name="projectId">
+    /// Restrict the export to a single project, instead of all registered projects. Must
+    /// correspond to the id field returned by GET /projects; a projectId that does not match any
+    /// project results in a 404.
+    /// </param>
+    /// <param name="cancellationToken">Propagates request abort/timeout to the async pipeline.</param>
+    /// <response code="200">
+    /// CSV file with one row per feedback record in the requested window (and project, if given),
+    /// ordered by created_at ascending.
+    /// </response>
+    /// <response code="400">
+    /// startDate or endDate is not a valid date-time, the effective startDate (after defaults are
+    /// applied) is after the effective endDate, or the effective window exceeds 366 days. This is
+    /// the only client-error condition other than 404 under which this endpoint fails.
+    /// </response>
+    /// <response code="404">
+    /// projectId was given but does not correspond to any registered project. This is the only
+    /// condition under which this endpoint returns 404; the response has no body.
+    /// </response>
+    /// <response code="500">
+    /// An unhandled exception occurred while processing the request. This is the only condition
+    /// under which this endpoint returns 500.
+    /// </response>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "text/csv")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ServerErrorProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public async Task<IActionResult> ExportAsync(
+        [FromQuery(Name = "start_date")] DateTimeOffset? startDate,
+        [FromQuery(Name = "end_date")] DateTimeOffset? endDate,
+        [FromQuery(Name = "project_id")] long? projectId,
+        CancellationToken cancellationToken)
+    {
+        var result = await feedbackService.ExportAsync(
+            startDate?.UtcDateTime,
+            endDate?.UtcDateTime,
+            projectId,
+            cancellationToken);
+
+        return result.Map(
+            onSuccess: export => (IActionResult)File(ToCsvBytes(export.Rows), "text/csv", ToFileName(export, projectId)),
+            onFailure: failure => failure.ToActionResult(HttpContext));
+    }
+
+    private static byte[] ToCsvBytes(IReadOnlyList<FeedbackExportRow> rows)
+    {
+        using var memoryStream = new MemoryStream();
+        using (var streamWriter = new StreamWriter(memoryStream, leaveOpen: true))
+        using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
+        {
+            csvWriter.WriteRecords(rows.Select(ToCsvRecord));
+        }
+
+        return memoryStream.ToArray();
+    }
+
+    private static FeedbackExportCsvRecord ToCsvRecord(FeedbackExportRow row) => new(
+        row.Id,
+        row.ProjectId,
+        row.ProjectName,
+        row.Question,
+        row.Useful,
+        JsonSerializer.Serialize(row.Similarities),
+        row.Reason,
+        row.Username,
+        row.CreatedAt);
+
+    private static string ToFileName(FeedbackExportResult export, long? projectId)
+    {
+        var projectSuffix = projectId is null ? string.Empty : $"_project-{projectId}";
+        return $"feedback_export_{export.StartDate:yyyyMMdd}_{export.EndDate:yyyyMMdd}{projectSuffix}.csv";
+    }
+
+    // SA1313 wants these lower-case, but positional record parameters are also the record's
+    // public properties. Column order and snake_case names match the documented CSV contract in
+    // .specs/code-query-feedback-export-openapi.yaml.
+#pragma warning disable SA1313
+    private sealed record FeedbackExportCsvRecord(
+        [property: Name("id")] long Id,
+        [property: Name("project_id")] long ProjectId,
+        [property: Name("project_name")] string ProjectName,
+        [property: Name("question")] string Question,
+        [property: Name("useful")] bool Useful,
+        [property: Name("similarities")] string Similarities,
+        [property: Name("reason")] string? Reason,
+        [property: Name("username")] string Username,
+        [property: Name("created_at"), Format("yyyy-MM-ddTHH:mm:ssZ")] DateTime CreatedAt);
+#pragma warning restore SA1313
 
     private static CodeQueryFeedbackStatsResponse ToResponse(FeedbackStatsResult result) => new(
         result.StartDate,

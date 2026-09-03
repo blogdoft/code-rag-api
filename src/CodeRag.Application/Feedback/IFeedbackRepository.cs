@@ -39,4 +39,19 @@ public interface IFeedbackRepository
         DateTime endDate,
         long? projectId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns every raw feedback record whose <c>created_at</c> falls within
+    /// <paramref name="startDate"/>/<paramref name="endDate"/>, joined with its project's name,
+    /// ordered by <c>created_at</c> ascending.
+    /// </summary>
+    /// <param name="startDate">Inclusive lower bound (UTC) of the window.</param>
+    /// <param name="endDate">Inclusive upper bound (UTC) of the window.</param>
+    /// <param name="projectId">When given, restricts the export to this single project.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    Task<IReadOnlyList<FeedbackExportRow>> ExportAsync(
+        DateTime startDate,
+        DateTime endDate,
+        long? projectId,
+        CancellationToken cancellationToken = default);
 }

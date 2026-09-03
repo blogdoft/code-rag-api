@@ -157,6 +157,82 @@ public sealed class FeedbackRepositoryTests(PostgresFixture fixture)
         week.Projects.ShouldContain(p => p.ProjectId == projectWithoutFeedback && p.TotalCount == 0);
     }
 
+    [Fact]
+    public async Task Should_ReturnRowsOrderedByCreatedAtAscending_When_ExportingWithinWindow()
+    {
+        var projectId = await InsertProjectAsync();
+        // Fixed, far-past window so no other test in this shared-container collection can pollute it.
+        var similarities = new[] { 0.91, 0.73 };
+        await InsertFeedbackAtAsync(projectId, new DateTime(2024, 4, 10, 12, 0, 0, DateTimeKind.Utc), useful: false, similarities: similarities, reason: "not related");
+        await InsertFeedbackAtAsync(projectId, new DateTime(2024, 4, 5, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+
+        var rows = await _repository.ExportAsync(
+            new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2024, 4, 30, 23, 59, 59, DateTimeKind.Utc),
+            projectId);
+
+        rows.Count.ShouldBe(2);
+        rows[0].CreatedAt.ShouldBe(new DateTime(2024, 4, 5, 12, 0, 0, DateTimeKind.Utc));
+        rows[0].Useful.ShouldBeTrue();
+        rows[0].Similarities.ShouldBeEmpty();
+        rows[0].Reason.ShouldBeNull();
+        rows[1].CreatedAt.ShouldBe(new DateTime(2024, 4, 10, 12, 0, 0, DateTimeKind.Utc));
+        rows[1].Useful.ShouldBeFalse();
+        rows[1].Similarities.ShouldBe(similarities);
+        rows[1].Reason.ShouldBe("not related");
+        rows.ShouldAllBe(row => row.ProjectId == projectId && row.ProjectName != null);
+    }
+
+    [Fact]
+    public async Task Should_ExcludeRows_When_ExportCreatedAtIsOutsideTheRequestedWindow()
+    {
+        var projectId = await InsertProjectAsync();
+        await InsertFeedbackAtAsync(projectId, new DateTime(2021, 7, 1, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+        await InsertFeedbackAtAsync(projectId, new DateTime(2021, 7, 15, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+
+        var rows = await _repository.ExportAsync(
+            new DateTime(2021, 7, 10, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2021, 7, 20, 23, 59, 59, DateTimeKind.Utc),
+            projectId);
+
+        rows.ShouldHaveSingleItem();
+        rows[0].CreatedAt.ShouldBe(new DateTime(2021, 7, 15, 12, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task Should_RestrictExportToSingleProject_When_ProjectIdFilterIsGiven()
+    {
+        var filteredProjectId = await InsertProjectAsync();
+        var otherProjectId = await InsertProjectAsync();
+        await InsertFeedbackAtAsync(filteredProjectId, new DateTime(2022, 8, 4, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+        await InsertFeedbackAtAsync(otherProjectId, new DateTime(2022, 8, 4, 12, 0, 0, DateTimeKind.Utc), useful: false, similarities: [], reason: null);
+
+        var rows = await _repository.ExportAsync(
+            new DateTime(2022, 8, 1, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2022, 8, 31, 23, 59, 59, DateTimeKind.Utc),
+            filteredProjectId);
+
+        rows.ShouldHaveSingleItem();
+        rows[0].ProjectId.ShouldBe(filteredProjectId);
+    }
+
+    [Fact]
+    public async Task Should_IncludeEveryRegisteredProject_When_NoProjectIdFilterIsGivenForExport()
+    {
+        var firstProjectId = await InsertProjectAsync();
+        var secondProjectId = await InsertProjectAsync();
+        await InsertFeedbackAtAsync(firstProjectId, new DateTime(2023, 10, 4, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+        await InsertFeedbackAtAsync(secondProjectId, new DateTime(2023, 10, 4, 13, 0, 0, DateTimeKind.Utc), useful: false, similarities: [], reason: null);
+
+        var rows = await _repository.ExportAsync(
+            new DateTime(2023, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2023, 10, 31, 23, 59, 59, DateTimeKind.Utc),
+            null);
+
+        rows.ShouldContain(row => row.ProjectId == firstProjectId);
+        rows.ShouldContain(row => row.ProjectId == secondProjectId);
+    }
+
     private async Task<long> InsertProjectAsync()
     {
         await using var connection = await fixture.DataSource.OpenConnectionAsync();
@@ -165,14 +241,14 @@ public sealed class FeedbackRepositoryTests(PostgresFixture fixture)
             new { name = $"project-{_faker.Random.AlphaNumeric(10)}" });
     }
 
-    private async Task InsertFeedbackAtAsync(long projectId, DateTime createdAtUtc, bool useful)
+    private async Task InsertFeedbackAtAsync(long projectId, DateTime createdAtUtc, bool useful, double[]? similarities = null, string? reason = null)
     {
         await using var connection = await fixture.DataSource.OpenConnectionAsync();
         await connection.ExecuteAsync(
             """
-            INSERT INTO public.code_query_feedback (project_id, question, useful, similarities, username, created_at)
-            VALUES (@ProjectId, 'stats test', @Useful, ARRAY[]::float8[], 'tester', @CreatedAt)
+            INSERT INTO public.code_query_feedback (project_id, question, useful, similarities, reason, username, created_at)
+            VALUES (@ProjectId, 'stats test', @Useful, @Similarities, @Reason, 'tester', @CreatedAt)
             """,
-            new { ProjectId = projectId, Useful = useful, CreatedAt = createdAtUtc });
+            new { ProjectId = projectId, Useful = useful, Similarities = similarities ?? [], Reason = reason, CreatedAt = createdAtUtc });
     }
 }

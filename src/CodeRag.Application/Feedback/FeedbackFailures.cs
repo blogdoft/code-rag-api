@@ -24,6 +24,14 @@ public static class FeedbackFailures
         "400-user-required",
         "The 'user' field is required and must not be empty. For MCP callers, this must be the calling agent/tool's own name.");
 
+    public static Failure InvalidDateRange => new(
+        "400-invalid-date-range",
+        "The 'start_date' must not be after 'end_date'.");
+
+    public static Failure WindowTooLarge => new(
+        "400-window-too-large",
+        "The requested time window must not exceed 366 days (12 months).");
+
     public static Failure QuestionTooLong(int maxLength) => new(
         "400-question-too-long",
         $"The 'question' field must be at most {maxLength} characters long.");

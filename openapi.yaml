@@ -86,6 +86,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ServerErrorProblemDetails'
+  /api/v1/code-queries/feedback/stats:
+    get:
+      tags:
+        - Code Query
+      summary: 'Get feedback effectiveness statistics, grouped by week and by project'
+      description: "Returns feedback effectiveness statistics for a time window (up to 12 months), broken down\ninto a dense weekly x project grid: every ISO calendar week (Monday-Sunday) overlapping\nthe window is included, and within every week, every registered project (or the single\nproject matching projectId, if given) is included, even when it has zero feedback in that\nspecific week. Each project entry within a week reports useful vs. not-useful counts and\npercentages for feedback created in that week.\n            \nstartDate and endDate are both optional and independent. When neither is given, the window\ndefaults to the last 30 days ending now (UTC). When only one is given, the other end of the\nwindow is derived as a 30-day span from the given value (startDate + 30 days, or\nendDate - 30 days). When both are given, the exact window requested is used. startDate\nafter endDate is a 400. The effective window (endDate - startDate) must not exceed 366\ndays (12 months); exceeding it is also a 400."
+      parameters:
+        - name: start_date
+          in: query
+          description: "Inclusive lower bound (UTC, ISO 8601) of the time window to aggregate feedback over.\nOptional - see the endpoint description for the default-window rules that apply when this\nand/or endDate are omitted, and for the 366-day maximum window size."
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: "Inclusive upper bound (UTC, ISO 8601) of the time window to aggregate feedback over.\nOptional - see the endpoint description for the default-window rules that apply when this\nand/or startDate are omitted, and for the 366-day maximum window size."
+          schema:
+            type: string
+            format: date-time
+        - name: project_id
+          in: query
+          description: "Restrict every week's project list to a single project, instead of all registered\nprojects. Must correspond to the id field returned by GET /projects; a projectId that does\nnot match any project results in a 404."
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: "Feedback statistics for the requested time window, as a dense grid of every week\noverlapping the window, each containing every registered project (or a single project when\nprojectId was given), with zero-filled entries where there was no feedback. start_date/\nend_date in the response body reflect the effective window actually used, including when\nderived by default."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeQueryFeedbackStatsResponse'
+        '400':
+          description: "startDate or endDate is not a valid date-time, startDate is after endDate when both are\ngiven, or the effective window exceeds 366 days. This is the only client-error condition\nother than 404 under which this endpoint fails."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: "projectId was given but does not correspond to any registered project. This is the only\ncondition under which this endpoint returns 404; the response has no body."
+        '500':
+          description: "An unhandled exception occurred while processing the request. This is the only condition\nunder which this endpoint returns 500."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorProblemDetails'
   /api/v1/projects:
     get:
       tags:
@@ -333,6 +379,25 @@ components:
           format: date-time
       additionalProperties: false
       description: "A recorded piece of feedback on a prior code query. Serializes as snake_case. There is no GET\nendpoint for retrieving it later in this iteration - this response is the only view of it."
+    CodeQueryFeedbackStatsResponse:
+      type: object
+      properties:
+        start_date:
+          type: string
+          description: Effective inclusive lower bound (UTC) of the aggregated window.
+          format: date-time
+        end_date:
+          type: string
+          description: Effective inclusive upper bound (UTC) of the aggregated window.
+          format: date-time
+        weeks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyFeedbackStatsResponse'
+          description: "Every ISO calendar week (Monday-Sunday) overlapping the effective window, ordered by\n`week_start` ascending. Always includes every overlapping week, even ones with zero\nfeedback across all projects."
+          nullable: true
+      additionalProperties: false
+      description: "Feedback effectiveness statistics for a time window, as a dense week × project grid.\nSerializes as snake_case."
     CodeQueryKindFilterRequest:
       required:
         - operator
@@ -486,6 +551,39 @@ components:
           type: string
           nullable: true
       additionalProperties: { }
+    ProjectFeedbackStatsResponse:
+      type: object
+      properties:
+        project_id:
+          type: integer
+          description: Id of the project these statistics belong to.
+          format: int64
+        project_name:
+          type: string
+          description: Name of the project these statistics belong to.
+          nullable: true
+        total_count:
+          type: integer
+          description: Total number of feedback records for this project within this week.
+          format: int64
+        useful_count:
+          type: integer
+          description: Number of feedback records with `useful = true` within this week.
+          format: int64
+        not_useful_count:
+          type: integer
+          description: Number of feedback records with `useful = false` within this week.
+          format: int64
+        useful_percentage:
+          type: number
+          description: "UsefulCount as a percentage of TotalCount for this week,\n            rounded to 2 decimal places. 0 when TotalCount is 0."
+          format: double
+        not_useful_percentage:
+          type: number
+          description: "NotUsefulCount as a percentage of TotalCount for this\n            week, rounded to 2 decimal places. 0 when TotalCount is 0."
+          format: double
+      additionalProperties: false
+      description: Feedback effectiveness statistics for a single project within a single week.
     ProjectRequest:
       type: object
       properties:
@@ -557,6 +655,25 @@ components:
         - not_contains
         - equals
       type: string
+    WeeklyFeedbackStatsResponse:
+      type: object
+      properties:
+        week_start:
+          type: string
+          description: Monday of this ISO calendar week.
+          format: date
+        week_end:
+          type: string
+          description: Sunday of this ISO calendar week.
+          format: date
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectFeedbackStatsResponse'
+          description: "Every registered project (or the single project matching `project_id`, if given), ordered\nby `project_id`, with counts/percentages for feedback created within this week and within\nthe overall requested window. Zero-filled when a project had no feedback in this specific week."
+          nullable: true
+      additionalProperties: false
+      description: Feedback effectiveness statistics for a single ISO calendar week (Monday-Sunday).
 tags:
   - name: Code Query
     description: Operations for querying indexed source code using natural language.

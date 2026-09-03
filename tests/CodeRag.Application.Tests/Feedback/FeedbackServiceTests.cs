@@ -157,4 +157,113 @@ public sealed class FeedbackServiceTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Similarities.ShouldBeEmpty();
     }
+
+    [Fact]
+    public async Task Should_UseLast30Days_When_NoDatesAreGiven()
+    {
+        _feedbackRepository.GetStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var before = DateTime.UtcNow;
+        var result = await _sut.GetStatsAsync(null, null, null);
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.EndDate.ShouldBeInRange(before, after);
+        (result.Value.EndDate - result.Value.StartDate).ShouldBe(TimeSpan.FromDays(FeedbackService.DefaultWindowDays));
+    }
+
+    [Fact]
+    public async Task Should_DeriveEndDate_When_OnlyStartDateIsGiven()
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        _feedbackRepository.GetStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.GetStatsAsync(start, null, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.StartDate.ShouldBe(start);
+        result.Value.EndDate.ShouldBe(start.AddDays(FeedbackService.DefaultWindowDays));
+    }
+
+    [Fact]
+    public async Task Should_DeriveStartDate_When_OnlyEndDateIsGiven()
+    {
+        var end = new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc);
+        _feedbackRepository.GetStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.GetStatsAsync(null, end, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.EndDate.ShouldBe(end);
+        result.Value.StartDate.ShouldBe(end.AddDays(-FeedbackService.DefaultWindowDays));
+    }
+
+    [Fact]
+    public async Task Should_UseExactWindow_When_BothDatesAreGiven()
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        _feedbackRepository.GetStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), null, Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.GetStatsAsync(start, end, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.StartDate.ShouldBe(start);
+        result.Value.EndDate.ShouldBe(end);
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_StartDateIsAfterEndDate()
+    {
+        var start = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await _sut.GetStatsAsync(start, end, null);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldBe("400-invalid-date-range");
+    }
+
+    [Fact]
+    public async Task Should_ReturnValidationFailure_When_WindowExceedsMaximum()
+    {
+        var start = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = start.AddDays(FeedbackService.MaxWindowDays + 1);
+
+        var result = await _sut.GetStatsAsync(start, end, null);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldBe("400-window-too-large");
+    }
+
+    [Fact]
+    public async Task Should_ReturnNotFound_When_ProjectIdFilterDoesNotExist()
+    {
+        _projectsRepository.GetByIdAsync(999, Arg.Any<CancellationToken>()).Returns((Project?)null);
+
+        var result = await _sut.GetStatsAsync(null, null, 999);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldStartWith("404");
+    }
+
+    [Fact]
+    public async Task Should_ReturnStats_When_ProjectIdFilterExists()
+    {
+        var weeks = new List<WeeklyFeedbackStats>
+        {
+            new(new DateOnly(2026, 8, 3), new DateOnly(2026, 8, 9), [new ProjectFeedbackStats(1, "some-project", 4, 3, 1, 75, 25)]),
+        };
+        _feedbackRepository.GetStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), 1, Arg.Any<CancellationToken>())
+            .Returns(weeks);
+
+        var result = await _sut.GetStatsAsync(null, null, 1);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Weeks.ShouldBe(weeks);
+    }
 }

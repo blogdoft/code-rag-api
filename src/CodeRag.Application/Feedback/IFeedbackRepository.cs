@@ -23,4 +23,20 @@ public interface IFeedbackRepository
     /// <param name="projectId">Id of the project to check.</param>
     /// <param name="cancellationToken">Token used to cancel the lookup.</param>
     Task<bool> ExistsForProjectAsync(long projectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns feedback effectiveness statistics as a dense week × project grid: every ISO
+    /// calendar week overlapping <paramref name="startDate"/>/<paramref name="endDate"/> is
+    /// present, and within each week, every eligible project is present (even with zero feedback
+    /// in that specific week).
+    /// </summary>
+    /// <param name="startDate">Inclusive lower bound (UTC) of the window.</param>
+    /// <param name="endDate">Inclusive upper bound (UTC) of the window.</param>
+    /// <param name="projectId">When given, restricts every week's project list to this single project.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    Task<IReadOnlyList<WeeklyFeedbackStats>> GetStatsAsync(
+        DateTime startDate,
+        DateTime endDate,
+        long? projectId,
+        CancellationToken cancellationToken = default);
 }

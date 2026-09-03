@@ -19,6 +19,12 @@ public sealed class FeedbackService(
     /// <summary>Matches CodeQueryService.MaxResultLimit - a feedback submission can't reference more results than a single query could ever return.</summary>
     public const int MaxSimilaritiesCount = 50;
 
+    /// <summary>Default window size (in days) applied by GetStatsAsync when start/end date are omitted or only one is given.</summary>
+    public const int DefaultWindowDays = 30;
+
+    /// <summary>Maximum allowed window size (in days, ~12 months) for GetStatsAsync.</summary>
+    public const int MaxWindowDays = 366;
+
     public async Task<Result<FeedbackResult>> SubmitAsync(
         long projectId,
         string? question,
@@ -84,5 +90,41 @@ public sealed class FeedbackService(
             cancellationToken);
 
         return Result<FeedbackResult>.FromSuccess(feedback);
+    }
+
+    public async Task<Result<FeedbackStatsResult>> GetStatsAsync(
+        DateTime? startDate,
+        DateTime? endDate,
+        long? projectId,
+        CancellationToken cancellationToken = default)
+    {
+        // Both given: start_date > end_date is only meaningful to reject when the caller
+        // actually supplied both ends themselves - the default-window derivation below can never
+        // produce an inverted range on its own.
+        if (startDate is not null && endDate is not null && startDate > endDate)
+        {
+            return FeedbackFailures.InvalidDateRange;
+        }
+
+        var effectiveEnd = endDate ?? startDate?.AddDays(DefaultWindowDays) ?? DateTime.UtcNow;
+        var effectiveStart = startDate ?? effectiveEnd.AddDays(-DefaultWindowDays);
+
+        if (effectiveEnd - effectiveStart > TimeSpan.FromDays(MaxWindowDays))
+        {
+            return FeedbackFailures.WindowTooLarge;
+        }
+
+        if (projectId is not null)
+        {
+            var project = await projectsRepository.GetByIdAsync(projectId.Value, cancellationToken);
+            if (project is null)
+            {
+                return FeedbackFailures.ProjectNotFound(projectId.Value);
+            }
+        }
+
+        var weeks = await feedbackRepository.GetStatsAsync(effectiveStart, effectiveEnd, projectId, cancellationToken);
+
+        return Result<FeedbackStatsResult>.FromSuccess(new FeedbackStatsResult(effectiveStart, effectiveEnd, weeks));
     }
 }

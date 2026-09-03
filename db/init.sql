@@ -67,4 +67,4 @@ CREATE TABLE public.code_query_feedback (
     CONSTRAINT "PK_code_query_feedback" PRIMARY KEY (id),
     CONSTRAINT "FK_code_query_feedback_project_id_projects_id" FOREIGN KEY (project_id) REFERENCES public.projects(id)
 );
-CREATE INDEX ix_code_query_feedback_project_id ON public.code_query_feedback USING btree (project_id);
+CREATE INDEX ix_code_query_feedback_project_id_created_at ON public.code_query_feedback USING btree (project_id, created_at);

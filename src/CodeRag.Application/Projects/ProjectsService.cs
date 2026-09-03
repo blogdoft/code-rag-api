@@ -1,11 +1,13 @@
 using BlogDoFT.Libs.ResultPattern;
 using CodeRag.Application.CodeQueries;
+using CodeRag.Application.Feedback;
 
 namespace CodeRag.Application.Projects;
 
 public sealed class ProjectsService(
     IProjectsRepository repository,
-    ICodeDocumentsRepository codeDocumentsRepository) : IProjectsService
+    ICodeDocumentsRepository codeDocumentsRepository,
+    IFeedbackRepository feedbackRepository) : IProjectsService
 {
     /// <summary>Matches the <c>maxLength</c> constraint on the <c>name</c> query parameter in the OpenAPI contract.</summary>
     public const int MaxNameFilterLength = 200;
@@ -99,6 +101,12 @@ public sealed class ProjectsService(
         if (hasCodeDocuments)
         {
             return ProjectFailures.HasIndexedCodeDocuments(projectId);
+        }
+
+        var hasFeedback = await feedbackRepository.ExistsForProjectAsync(projectId, cancellationToken);
+        if (hasFeedback)
+        {
+            return ProjectFailures.HasFeedback(projectId);
         }
 
         // No separate existence check is needed: when projectId doesn't exist, DeleteAsync

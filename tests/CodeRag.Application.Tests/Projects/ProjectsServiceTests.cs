@@ -1,5 +1,6 @@
 using Bogus;
 using CodeRag.Application.CodeQueries;
+using CodeRag.Application.Feedback;
 using CodeRag.Application.Projects;
 using NSubstitute;
 using Shouldly;
@@ -10,12 +11,13 @@ public sealed class ProjectsServiceTests
 {
     private readonly IProjectsRepository _repository = Substitute.For<IProjectsRepository>();
     private readonly ICodeDocumentsRepository _codeDocumentsRepository = Substitute.For<ICodeDocumentsRepository>();
+    private readonly IFeedbackRepository _feedbackRepository = Substitute.For<IFeedbackRepository>();
     private readonly Faker _faker = new();
     private readonly ProjectsService _sut;
 
     public ProjectsServiceTests()
     {
-        _sut = new ProjectsService(_repository, _codeDocumentsRepository);
+        _sut = new ProjectsService(_repository, _codeDocumentsRepository, _feedbackRepository);
     }
 
     [Fact]
@@ -303,6 +305,19 @@ public sealed class ProjectsServiceTests
 
         result.IsFailure.ShouldBeTrue();
         result.Failure.Code.ShouldStartWith("409");
+        await _repository.DidNotReceive().DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_ReturnConflict_When_DeletingProjectWithFeedback()
+    {
+        _codeDocumentsRepository.ExistsForProjectAsync(1, Arg.Any<CancellationToken>()).Returns(false);
+        _feedbackRepository.ExistsForProjectAsync(1, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _sut.DeleteAsync(1);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Failure.Code.ShouldBe("409-has-feedback");
         await _repository.DidNotReceive().DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 

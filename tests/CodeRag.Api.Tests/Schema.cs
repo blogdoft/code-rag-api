@@ -49,5 +49,16 @@ internal static class Schema
             indexed_at timestamptz NOT NULL,
             CONSTRAINT ux_code_documents_document_id_embedding_model UNIQUE (document_id, embedding_model_id)
         );
+
+        CREATE TABLE public.code_query_feedback (
+            id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            project_id int8 NOT NULL REFERENCES public.projects(id),
+            question text NOT NULL,
+            useful bool NOT NULL,
+            similarities float8[] NOT NULL,
+            reason text NULL,
+            username text NOT NULL,
+            created_at timestamptz DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL
+        );
         """;
 }

@@ -96,8 +96,9 @@ if your Ollama host can't keep up with parallel scoring requests.
 - `POST /api/v1/projects` — create a project.
 - `GET /api/v1/projects/{projectId}` — get a project by id.
 - `PUT /api/v1/projects/{projectId}` — rename a project.
-- `DELETE /api/v1/projects/{projectId}` — delete a project (fails if it still has indexed code documents).
+- `DELETE /api/v1/projects/{projectId}` — delete a project (fails if it still has indexed code documents or feedback records).
 - `POST /api/v1/projects/{projectId}/code-queries` — natural-language search over a project's indexed code.
+- `POST /api/v1/projects/{projectId}/code-queries/feedback` — report whether a prior code query's results were useful.
 
 ## MCP
 
@@ -106,6 +107,10 @@ stateless — no session handshake required):
 
 - **`list_projects`** — optional `name` filter, mirrors `GET /projects`.
 - **`query_project_code`** — `projectId` + `question`, mirrors `POST /code-queries`.
+- **`submit_code_query_feedback`** — `projectId` + `question` + `useful` + `similarities` +
+  `user` (+ optional `reason`), mirrors `POST /code-queries/feedback`. Reports whether a prior
+  `query_project_code` call's results were useful; `user` must identify the calling agent/tool
+  (e.g. "claude code", "codex", "crewai", "hermes", "opencode").
 
 ### Configuring the MCP server
 

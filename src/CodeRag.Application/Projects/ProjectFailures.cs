@@ -52,4 +52,8 @@ public static class ProjectFailures
     public static Failure HasIndexedCodeDocuments(long projectId) => new(
         "409-has-indexed-code-documents",
         $"Project {projectId} has indexed code documents and cannot be deleted. Remove its indexed code documents first.");
+
+    public static Failure HasFeedback(long projectId) => new(
+        "409-has-feedback",
+        $"Project {projectId} has feedback records and cannot be deleted. Remove its feedback records first.");
 }

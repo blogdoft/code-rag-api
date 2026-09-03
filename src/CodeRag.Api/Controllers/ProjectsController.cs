@@ -206,10 +206,10 @@ public sealed class ProjectsController(IProjectsService projectsService) : Contr
 
     /// <summary>Delete a project</summary>
     /// <remarks>
-    /// Permanently deletes a project. To prevent silently orphaning or destroying indexed code, a
-    /// project that still has indexed code documents cannot be deleted - remove/re-index those
-    /// first (outside the scope of this API). This is a hard delete; there is no soft-delete or
-    /// undo.
+    /// Permanently deletes a project. To prevent silently orphaning or destroying indexed code or
+    /// recorded feedback, a project that still has indexed code documents or feedback records
+    /// (from POST .../code-queries/feedback) cannot be deleted - remove those first (outside the
+    /// scope of this API). This is a hard delete; there is no soft-delete or undo.
     /// </remarks>
     /// <param name="projectId">
     /// Identifier of the project, corresponding to the id field returned by GET /projects or
@@ -227,8 +227,8 @@ public sealed class ProjectsController(IProjectsService projectsService) : Contr
     /// endpoint returns 404; the response has no body.
     /// </response>
     /// <response code="409">
-    /// The project has one or more indexed code documents and cannot be deleted. This is the only
-    /// condition under which this endpoint returns 409.
+    /// The project has one or more indexed code documents, or one or more feedback records, and
+    /// cannot be deleted. This is the only condition under which this endpoint returns 409.
     /// </response>
     /// <response code="500">
     /// An unhandled exception occurred while processing the request. This is the only condition

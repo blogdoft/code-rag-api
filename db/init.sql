@@ -54,3 +54,17 @@ CREATE INDEX ix_code_documents_embedding_model_id ON public.code_documents USING
 CREATE INDEX ix_code_documents_kind ON public.code_documents USING btree (kind);
 CREATE INDEX ix_code_documents_metadata_gin ON public.code_documents USING gin (metadata);
 CREATE INDEX ix_code_documents_project_id ON public.code_documents USING btree (project_id);
+
+CREATE TABLE public.code_query_feedback (
+    id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
+    project_id int8 NOT NULL,
+    question text NOT NULL,
+    useful bool NOT NULL,
+    similarities float8[] NOT NULL,
+    reason text NULL,
+    username text NOT NULL,
+    created_at timestamptz DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL,
+    CONSTRAINT "PK_code_query_feedback" PRIMARY KEY (id),
+    CONSTRAINT "FK_code_query_feedback_project_id_projects_id" FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE INDEX ix_code_query_feedback_project_id ON public.code_query_feedback USING btree (project_id);

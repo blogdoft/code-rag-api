@@ -1,6 +1,8 @@
 using CodeRag.Application.CodeQueries;
+using CodeRag.Application.Feedback;
 using CodeRag.Application.Projects;
 using CodeRag.Infrastructure.Database.CodeQueries;
+using CodeRag.Infrastructure.Database.Feedback;
 using CodeRag.Infrastructure.Database.Projects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IProjectsRepository, ProjectsRepository>();
         services.AddScoped<ICodeDocumentsRepository, CodeDocumentsRepository>();
+        services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 
         return services;
     }

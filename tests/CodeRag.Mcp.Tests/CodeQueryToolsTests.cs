@@ -1,5 +1,6 @@
 using Bogus;
 using CodeRag.Application.CodeQueries;
+using CodeRag.Application.Feedback;
 using CodeRag.Mcp.Tools;
 using ModelContextProtocol;
 using NSubstitute;
@@ -10,12 +11,13 @@ namespace CodeRag.Mcp.Tests;
 public sealed class CodeQueryToolsTests
 {
     private readonly ICodeQueryService _codeQueryService = Substitute.For<ICodeQueryService>();
+    private readonly IFeedbackService _feedbackService = Substitute.For<IFeedbackService>();
     private readonly Faker _faker = new();
     private readonly CodeQueryTools _sut;
 
     public CodeQueryToolsTests()
     {
-        _sut = new CodeQueryTools(_codeQueryService);
+        _sut = new CodeQueryTools(_codeQueryService, _feedbackService);
     }
 
     [Fact]
@@ -123,5 +125,41 @@ public sealed class CodeQueryToolsTests
             NamespaceFilterOperator.Contains, "Billing",
             TypeNameFilterOperator.NotContains, "Controller",
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_ReturnMappedFeedback_When_ServiceSucceeds()
+    {
+        const long projectId = 1;
+        const string question = "where is the discount logic?";
+        var similarities = new[] { 0.9, 0.7 };
+        var created = new FeedbackResult(1, projectId, question, true, similarities, null, "claude code", DateTime.UtcNow);
+        _feedbackService.SubmitAsync(projectId, question, true, similarities, null, "claude code", Arg.Any<CancellationToken>())
+            .Returns(created);
+
+        var result = await _sut.SubmitCodeQueryFeedbackAsync(
+            projectId, question, true, similarities, "claude code", cancellationToken: CancellationToken.None);
+
+        result.Id.ShouldBe(created.Id);
+        result.ProjectId.ShouldBe(created.ProjectId);
+        result.Question.ShouldBe(created.Question);
+        result.Useful.ShouldBe(created.Useful);
+        result.Similarities.ShouldBe(created.Similarities);
+        result.Reason.ShouldBe(created.Reason);
+        result.User.ShouldBe(created.User);
+    }
+
+    [Fact]
+    public async Task Should_ThrowMcpException_When_SubmittingFeedbackForProjectThatDoesNotExist()
+    {
+        const long projectId = 999;
+        _feedbackService.SubmitAsync(projectId, "question", true, Arg.Any<IReadOnlyList<double>>(), null, "claude code", Arg.Any<CancellationToken>())
+            .Returns(CodeQueryFailures.ProjectNotFound(projectId));
+
+        var exception = await Should.ThrowAsync<McpException>(
+            () => _sut.SubmitCodeQueryFeedbackAsync(
+                projectId, "question", true, [0.9], "claude code", cancellationToken: CancellationToken.None));
+
+        exception.Message.ShouldBe(CodeQueryFailures.ProjectNotFound(projectId).Message);
     }
 }

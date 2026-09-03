@@ -255,6 +255,29 @@ public sealed class ProjectsEndpointTests(ApiFixture fixture)
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task Should_ReturnConflict_When_DeletingProjectWithFeedback()
+    {
+        var id = await InsertProjectAsync($"project-{_faker.Random.AlphaNumeric(10)}");
+        await InsertFeedbackAsync(id);
+
+        var response = await _client.DeleteAsync($"/api/v1/projects/{id}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
+    private async Task InsertFeedbackAsync(long projectId)
+    {
+        await using var connection = await fixture.DataSource.OpenConnectionAsync();
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO public.code_query_feedback (project_id, question, useful, similarities, username)
+            VALUES (@projectId, 'where is X?', true, ARRAY[0.9]::float8[], 'claude code')
+            """,
+            new { projectId });
+    }
+
     private async Task<long> InsertProjectAsync(string name)
     {
         await using var connection = await fixture.DataSource.OpenConnectionAsync();

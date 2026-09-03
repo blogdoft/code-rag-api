@@ -12,7 +12,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu
+    runs-on: self-hosted
     container:
       image: mcr.microsoft.com/dotnet/sdk:9.0
     steps:
@@ -44,7 +44,7 @@ jobs:
   publish:
     needs: test
     if: github.event_name == 'push'
-    runs-on: ubuntu
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 

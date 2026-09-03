@@ -1,4 +1,3 @@
-using CodeRag.Reranking.Abstraction;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Shouldly;

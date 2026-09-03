@@ -1,4 +1,3 @@
-using CodeRag.Reranking.Abstraction;
 using Microsoft.Extensions.Options;
 using Shouldly;
 
@@ -9,7 +8,7 @@ public sealed class NoOpRerankerTests
     [Fact]
     public async Task Should_ReturnEveryCandidateUnscoredInOriginalOrder()
     {
-        var resolver = new RerankerResolver([], Options.Create(new RerankingOptions { Provider = "" }));
+        var resolver = new RerankerResolver([], Options.Create(new RerankingOptions { Provider = string.Empty }));
         var sut = resolver.Resolve();
         var candidates = new[]
         {

@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using BlogDoFT.Libs.ResultPattern;
 using CodeRag.Api.Contracts;
 using CodeRag.Api.Problems;
@@ -7,6 +5,8 @@ using CodeRag.Application.Feedback;
 using CsvHelper;
 using CsvHelper.Configuration.Attributes;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Text.Json;
 
 namespace CodeRag.Api.Controllers;
 

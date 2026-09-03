@@ -1,9 +1,9 @@
-using System.Reflection;
-using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Reflection;
+using System.Xml.Linq;
 
 namespace CodeRag.Api.OpenApi;
 

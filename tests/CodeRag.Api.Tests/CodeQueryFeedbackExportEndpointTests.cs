@@ -1,9 +1,9 @@
-using System.Globalization;
-using System.Net;
 using Bogus;
 using CsvHelper;
 using Dapper;
 using Shouldly;
+using System.Globalization;
+using System.Net;
 
 namespace CodeRag.Api.Tests;
 
@@ -30,6 +30,7 @@ public sealed class CodeQueryFeedbackExportEndpointTests(ApiFixture fixture)
     public async Task Should_ReturnRowsWithinWindow_When_DateRangeIsGiven()
     {
         var projectId = await InsertProjectAsync();
+
         // Fixed, far-past window so no other test in this shared-container collection can pollute it.
         await InsertFeedbackAtAsync(projectId, new DateTime(2018, 4, 5, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [0.91, 0.73], reason: null);
         await InsertFeedbackAtAsync(projectId, new DateTime(2018, 4, 10, 12, 0, 0, DateTimeKind.Utc), useful: false, similarities: [], reason: "not related");

@@ -30,6 +30,7 @@ public sealed class CodeQueryFeedbackStatsEndpointTests(ApiFixture fixture)
     public async Task Should_ReturnDenseWeeklyGrid_When_ProjectIdFilterIsGiven()
     {
         var projectId = await InsertProjectAsync();
+
         // Fixed, far-past week so no other test in this shared-container collection (which
         // always inserts feedback "now" via POST .../feedback) can pollute this window.
         await InsertFeedbackAtAsync(projectId, new DateTime(2019, 6, 3, 12, 0, 0, DateTimeKind.Utc), useful: true);

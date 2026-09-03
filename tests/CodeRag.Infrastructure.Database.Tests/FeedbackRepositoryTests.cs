@@ -65,6 +65,7 @@ public sealed class FeedbackRepositoryTests(PostgresFixture fixture)
     public async Task Should_ReturnDenseWeeklyGrid_When_FeedbackSkipsAWeek()
     {
         var projectId = await InsertProjectAsync();
+
         // Week 1: Mon 2020-01-06 - Sun 2020-01-12. Week 2 (2020-01-13 - 01-19): no feedback at
         // all. Week 3: Mon 2020-01-20 - Sun 2020-01-26. Dates fixed far in the past so no other
         // test in this shared-container collection (which always inserts feedback at "now") can
@@ -161,6 +162,7 @@ public sealed class FeedbackRepositoryTests(PostgresFixture fixture)
     public async Task Should_ReturnRowsOrderedByCreatedAtAscending_When_ExportingWithinWindow()
     {
         var projectId = await InsertProjectAsync();
+
         // Fixed, far-past window so no other test in this shared-container collection can pollute it.
         var similarities = new[] { 0.91, 0.73 };
         await InsertFeedbackAtAsync(projectId, new DateTime(2024, 4, 10, 12, 0, 0, DateTimeKind.Utc), useful: false, similarities: similarities, reason: "not related");
@@ -241,7 +243,7 @@ public sealed class FeedbackRepositoryTests(PostgresFixture fixture)
             new { name = $"project-{_faker.Random.AlphaNumeric(10)}" });
     }
 
-    private async Task InsertFeedbackAtAsync(long projectId, DateTime createdAtUtc, bool useful, double[]? similarities = null, string? reason = null)
+    private async Task InsertFeedbackAtAsync(long projectId, DateTime createdAtUtc, bool useful, double[] ? similarities = null, string? reason = null)
     {
         await using var connection = await fixture.DataSource.OpenConnectionAsync();
         await connection.ExecuteAsync(

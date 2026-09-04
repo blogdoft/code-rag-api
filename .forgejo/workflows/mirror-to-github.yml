@@ -11,6 +11,16 @@ on:
     branches: ["**"]
     tags: ["**"]
 
+# A branch push and a tag push landing close together (e.g. tagging a release right after
+# pushing main) each trigger their own run of this job. Without this, two runs can execute
+# concurrently and race on the same working directory's refs - one run's tag fetch fails with
+# "would clobber existing tag" because the other run is fetching/writing refs at the same time.
+# Each run mirrors the full current state of origin regardless of which push triggered it, so
+# it's safe (and more efficient) to drop a still-running, now-stale run in favor of the newest.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   mirror:
     runs-on: ubuntu
@@ -22,7 +32,7 @@ jobs:
 
       - name: Fetch all branches and tags
         run: |
-          git fetch origin --prune '+refs/heads/*:refs/remotes/origin/*' --tags
+          git fetch origin --prune '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
           git update-ref -d refs/remotes/origin/HEAD 2>/dev/null || true
 
       - name: Push mirror to GitHub

@@ -10,6 +10,16 @@ on:
   pull_request:
     branches: [main]
 
+# A main push and a tag push landing close together (e.g. tagging a release right after
+# pushing main) each trigger their own run of this workflow. The publish/update-gitops jobs run
+# directly on the self-hosted runner host (no container isolation) and update-gitops pushes to a
+# shared external repo (argo-local-apps) - two overlapping runs can race on the runner's working
+# directory or clobber each other's push there. Unlike a mirror sync, each run here produces a
+# distinct, meaningful image version, so runs are queued (not cancelled) rather than dropped.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: self-hosted

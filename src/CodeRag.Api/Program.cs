@@ -1,3 +1,4 @@
+using CodeRag.Api;
 using CodeRag.Api.Filters;
 using CodeRag.Api.OpenApi;
 using CodeRag.Application;
@@ -109,7 +110,7 @@ try
 
     builder.Services.AddSwaggerGen(options =>
     {
-        options.SwaggerDoc("v1", new() { Title = "Code RAG API", Version = "1.0.0", Description = ApiDescription });
+        options.SwaggerDoc("v1", new() { Title = "Code RAG API", Version = AppVersion.Current, Description = ApiDescription });
 
         // Group by ApiExplorerSettings.GroupName (e.g. "Code Query") instead of the raw
         // controller name (e.g. "CodeQueries"), falling back to the latter when unset. Swashbuckle

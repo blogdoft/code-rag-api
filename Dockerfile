@@ -1,4 +1,5 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG VERSION=0.0.0-dev
 WORKDIR /src
 
 COPY CodeRag.sln stylecop.json ./
@@ -12,7 +13,7 @@ COPY src/CodeRag.Infrastructure.Database/CodeRag.Infrastructure.Database.csproj 
 RUN dotnet restore src/CodeRag.Api/CodeRag.Api.csproj
 
 COPY src/ src/
-RUN dotnet publish src/CodeRag.Api/CodeRag.Api.csproj -c Release -o /app
+RUN dotnet publish src/CodeRag.Api/CodeRag.Api.csproj -c Release -o /app -p:Version="$VERSION"
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app

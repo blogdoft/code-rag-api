@@ -8,6 +8,9 @@
     <!-- Required for AddOpenApi() to pick up XML doc comments as operation/schema descriptions. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Overridden with -p:Version at publish time (see Dockerfile), computed by GitVersion in
+         CI from the nearest git tag. This fallback covers local dotnet build/run. -->
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
 
   <ItemGroup>

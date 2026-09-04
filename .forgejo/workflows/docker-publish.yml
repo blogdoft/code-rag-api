@@ -15,6 +15,8 @@ jobs:
     runs-on: self-hosted
     container:
       image: mcr.microsoft.com/dotnet/sdk:9.0
+    outputs:
+      semver: ${{ steps.gitversion.outputs.semver }}
     steps:
       # actions/checkout is a Node action; the dotnet SDK image doesn't ship Node, and the
       # Forgejo runner doesn't inject one into custom job containers, so install it first
@@ -24,6 +26,20 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # GitVersion needs the full commit history and tags to compute a SemVer - the
+          # default shallow (depth 1) checkout only sees the current commit.
+          fetch-depth: 0
+
+      # gitversion.tool is already declared in .config/dotnet-tools.json. Zero-config SemVer
+      # from the nearest vX.Y.Z tag: a clean version on a tagged commit, a pre-release with
+      # commit-height suffix otherwise (e.g. 1.2.4-1 one commit past v1.2.3).
+      - name: Compute version (GitVersion)
+        id: gitversion
+        run: |
+          dotnet tool restore
+          semver=$(dotnet tool run dotnet-gitversion /showvariable SemVer)
+          echo "semver=$semver" >> "$GITHUB_OUTPUT"
 
       - name: Restore
         run: dotnet restore CodeRag.sln
@@ -45,6 +61,8 @@ jobs:
     needs: test
     if: github.event_name == 'push'
     runs-on: self-hosted
+    env:
+      VERSION: ${{ needs.test.outputs.semver }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,32 +71,29 @@ jobs:
       - name: Log in to the container registry
         run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ vars.REGISTRY }}" -u "${{ vars.REGISTRY_USERNAME }}" --password-stdin
 
-      # `tag` is the human-facing tag (latest / the pushed version tag). `deploy_tag` is
-      # always unique per commit - the update-gitops job needs a tag that changes on every
-      # push, otherwise the manifest synced to argo-local-apps never diffs and ArgoCD has
-      # nothing to sync.
-      - name: Determine image tag
+      # The image tag is always the GitVersion-computed SemVer, which is unique per commit
+      # (the pre-release commit-height suffix increments even without a new tag) - deploy_tag
+      # mirrors it 1:1 so the update-gitops job always sees a diff to sync. `latest` is only
+      # added when this run was triggered by pushing a vX.Y.Z tag, not on every main push.
+      - name: Determine image tags
         id: tag
         run: |
+          tags="${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${VERSION}"
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-            echo "deploy_tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-            echo "deploy_tag=main-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+            tags="$tags ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:latest"
           fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "deploy_tag=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build image
         run: |
-          docker build \
-            -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}" \
-            -t "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.deploy_tag }}" \
-            -f Dockerfile .
+          build_args=()
+          for t in ${{ steps.tag.outputs.tags }}; do build_args+=(-t "$t"); done
+          docker build --build-arg VERSION="${VERSION}" "${build_args[@]}" -f Dockerfile .
 
       - name: Push image
         run: |
-          docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"
-          docker push "${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${{ steps.tag.outputs.deploy_tag }}"
+          for t in ${{ steps.tag.outputs.tags }}; do docker push "$t"; done
 
     outputs:
       deploy_tag: ${{ steps.tag.outputs.deploy_tag }}

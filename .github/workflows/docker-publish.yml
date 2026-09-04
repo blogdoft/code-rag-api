@@ -14,12 +14,28 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.gitversion.outputs.semver }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # GitVersion needs the full commit history and tags to compute a SemVer - the
+          # default shallow (depth 1) checkout only sees the current commit.
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
+
+      # gitversion.tool is already declared in .config/dotnet-tools.json. Zero-config SemVer
+      # from the nearest vX.Y.Z tag: a clean version on a tagged commit, a pre-release with
+      # commit-height suffix otherwise (e.g. 1.2.4-1 one commit past v1.2.3).
+      - name: Compute version (GitVersion)
+        id: gitversion
+        run: |
+          dotnet tool restore
+          semver=$(dotnet tool run dotnet-gitversion /showvariable SemVer)
+          echo "semver=$semver" >> "$GITHUB_OUTPUT"
 
       - name: Restore
         run: dotnet restore CodeRag.sln
@@ -50,14 +66,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The image tag is always the GitVersion-computed SemVer (see the `test` job). `latest`
+      # is only added when this run was triggered by pushing a vX.Y.Z tag, not on every main
+      # push.
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
+            type=raw,value=${{ needs.test.outputs.semver }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=sha
 
       - name: Build and push
@@ -68,3 +87,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.test.outputs.semver }}

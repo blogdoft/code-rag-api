@@ -157,6 +157,11 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: timezone
+          in: query
+          description: "IANA timezone name (e.g. \"America/Sao_Paulo\") used to render the created_at column of the\nCSV in that zone's local wall-clock time, with an explicit UTC offset suffix. Optional -\nwhen omitted, created_at keeps its UTC rendering (a \"Z\" suffix). Does not affect startDate/\nendDate filtering or the default-window rules, which stay UTC-based regardless. An\nunrecognized IANA name is a 400."
+          schema:
+            type: string
       responses:
         '200':
           description: "CSV file with one row per feedback record in the requested window (and project, if given),\nordered by created_at ascending."
@@ -166,7 +171,7 @@ paths:
                 type: string
                 format: binary
         '400':
-          description: "startDate or endDate is not a valid date-time, the effective startDate (after defaults are\napplied) is after the effective endDate, or the effective window exceeds 366 days. This is\nthe only client-error condition other than 404 under which this endpoint fails."
+          description: "startDate or endDate is not a valid date-time, the effective startDate (after defaults are\napplied) is after the effective endDate, the effective window exceeds 366 days, or timezone\nwas given but is not a recognized IANA time zone name. This is the only client-error\ncondition other than 404 under which this endpoint fails."
           content:
             application/problem+json:
               schema:

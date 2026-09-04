@@ -117,6 +117,13 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
     /// correspond to the id field returned by GET /projects; a projectId that does not match any
     /// project results in a 404.
     /// </param>
+    /// <param name="timezone">
+    /// IANA timezone name (e.g. "America/Sao_Paulo") used to render the created_at column of the
+    /// CSV in that zone's local wall-clock time, with an explicit UTC offset suffix. Optional -
+    /// when omitted, created_at keeps its UTC rendering (a "Z" suffix). Does not affect startDate/
+    /// endDate filtering or the default-window rules, which stay UTC-based regardless. An
+    /// unrecognized IANA name is a 400.
+    /// </param>
     /// <param name="cancellationToken">Propagates request abort/timeout to the async pipeline.</param>
     /// <response code="200">
     /// CSV file with one row per feedback record in the requested window (and project, if given),
@@ -124,8 +131,9 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
     /// </response>
     /// <response code="400">
     /// startDate or endDate is not a valid date-time, the effective startDate (after defaults are
-    /// applied) is after the effective endDate, or the effective window exceeds 366 days. This is
-    /// the only client-error condition other than 404 under which this endpoint fails.
+    /// applied) is after the effective endDate, the effective window exceeds 366 days, or timezone
+    /// was given but is not a recognized IANA time zone name. This is the only client-error
+    /// condition other than 404 under which this endpoint fails.
     /// </response>
     /// <response code="404">
     /// projectId was given but does not correspond to any registered project. This is the only
@@ -144,8 +152,15 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
         [FromQuery(Name = "start_date")] DateTimeOffset? startDate,
         [FromQuery(Name = "end_date")] DateTimeOffset? endDate,
         [FromQuery(Name = "project_id")] long? projectId,
+        [FromQuery(Name = "timezone")] string? timezone,
         CancellationToken cancellationToken)
     {
+        TimeZoneInfo? tz = null;
+        if (!string.IsNullOrEmpty(timezone) && !TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out tz))
+        {
+            return FeedbackFailures.InvalidTimezone(timezone).ToActionResult(HttpContext);
+        }
+
         var result = await feedbackService.ExportAsync(
             startDate?.UtcDateTime,
             endDate?.UtcDateTime,
@@ -153,23 +168,23 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
             cancellationToken);
 
         return result.Map(
-            onSuccess: export => (IActionResult)File(ToCsvBytes(export.Rows), "text/csv", ToFileName(export, projectId)),
+            onSuccess: export => (IActionResult)File(ToCsvBytes(export.Rows, tz), "text/csv", ToFileName(export, projectId)),
             onFailure: failure => failure.ToActionResult(HttpContext));
     }
 
-    private static byte[] ToCsvBytes(IReadOnlyList<FeedbackExportRow> rows)
+    private static byte[] ToCsvBytes(IReadOnlyList<FeedbackExportRow> rows, TimeZoneInfo? timezone)
     {
         using var memoryStream = new MemoryStream();
         using (var streamWriter = new StreamWriter(memoryStream, leaveOpen: true))
         using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
         {
-            csvWriter.WriteRecords(rows.Select(ToCsvRecord));
+            csvWriter.WriteRecords(rows.Select(row => ToCsvRecord(row, timezone)));
         }
 
         return memoryStream.ToArray();
     }
 
-    private static FeedbackExportCsvRecord ToCsvRecord(FeedbackExportRow row) => new(
+    private static FeedbackExportCsvRecord ToCsvRecord(FeedbackExportRow row, TimeZoneInfo? timezone) => new(
         row.Id,
         row.ProjectId,
         row.ProjectName,
@@ -178,7 +193,19 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
         JsonSerializer.Serialize(row.Similarities),
         row.Reason,
         row.Username,
-        row.CreatedAt);
+        FormatCreatedAt(row.CreatedAt, timezone));
+
+    // Default (no timezone given): "Z"-suffixed UTC, matching the API's JSON contract elsewhere.
+    // With a timezone: converted to that zone's local wall-clock, with an explicit numeric offset
+    // ("zzz") instead of "Z" - the offset can differ per row's date for zones with DST, though
+    // Brazil's zones currently don't have any.
+    private static string FormatCreatedAt(DateTime createdAtUtc, TimeZoneInfo? timezone)
+    {
+        var utcOffset = new DateTimeOffset(createdAtUtc, TimeSpan.Zero);
+        return timezone is null
+            ? utcOffset.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
+            : TimeZoneInfo.ConvertTime(utcOffset, timezone).ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+    }
 
     private static string ToFileName(FeedbackExportResult export, long? projectId)
     {
@@ -188,7 +215,9 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
 
     // SA1313 wants these lower-case, but positional record parameters are also the record's
     // public properties. Column order and snake_case names match the documented CSV contract in
-    // .specs/code-query-feedback-export-openapi.yaml.
+    // .specs/code-query-feedback-export-openapi.yaml. created_at is a pre-formatted string (not a
+    // typed DateTime with a static CsvHelper [Format]) because its format depends on the optional
+    // timezone query parameter at request time, not on a fixed attribute.
 #pragma warning disable SA1313
     private sealed record FeedbackExportCsvRecord(
         [property: Name("id")] long Id,
@@ -199,7 +228,7 @@ public sealed class FeedbackController(IFeedbackService feedbackService) : Contr
         [property: Name("similarities")] string Similarities,
         [property: Name("reason")] string? Reason,
         [property: Name("username")] string Username,
-        [property: Name("created_at"), Format("yyyy-MM-ddTHH:mm:ssZ")] DateTime CreatedAt);
+        [property: Name("created_at")] string CreatedAt);
 #pragma warning restore SA1313
 
     private static CodeQueryFeedbackStatsResponse ToResponse(FeedbackStatsResult result) => new(

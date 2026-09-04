@@ -75,6 +75,31 @@ public sealed class CodeQueryFeedbackExportEndpointTests(ApiFixture fixture)
     }
 
     [Fact]
+    public async Task Should_RenderCreatedAtWithLocalOffset_When_TimezoneIsGiven()
+    {
+        var projectId = await InsertProjectAsync();
+        await InsertFeedbackAtAsync(projectId, new DateTime(2018, 6, 5, 12, 0, 0, DateTimeKind.Utc), useful: true, similarities: [], reason: null);
+
+        var response = await _client.GetAsync(
+            $"/api/v1/code-queries/feedback/export?start_date=2018-06-01T00:00:00Z&end_date=2018-06-30T23:59:59Z&project_id={projectId}&timezone=America/Sao_Paulo");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var rows = await ReadCsvRowsAsync(response);
+        rows.ShouldHaveSingleItem();
+        rows[0]["created_at"].ShouldBe("2018-06-05T09:00:00-03:00");
+    }
+
+    [Fact]
+    public async Task Should_ReturnBadRequest_When_TimezoneIsNotARecognizedIanaName()
+    {
+        var response = await _client.GetAsync(
+            "/api/v1/code-queries/feedback/export?timezone=Not/AZone");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
+    [Fact]
     public async Task Should_ReturnBadRequest_When_StartDateIsAfterEndDate()
     {
         var response = await _client.GetAsync(

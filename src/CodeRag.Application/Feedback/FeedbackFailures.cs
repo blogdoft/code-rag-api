@@ -51,4 +51,8 @@ public static class FeedbackFailures
     public static Failure ProjectNotFound(long projectId) => new(
         "404-project-not-found",
         $"No project exists with id {projectId}.");
+
+    public static Failure InvalidTimezone(string timezone) => new(
+        "400-invalid-timezone",
+        $"'{timezone}' is not a recognized IANA time zone name.");
 }

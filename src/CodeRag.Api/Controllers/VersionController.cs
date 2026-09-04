@@ -20,5 +20,5 @@ public sealed class VersionController : ControllerBase
     /// <response code="200">The running API's version.</response>
     [HttpGet]
     [ProducesResponseType<VersionResponse>(StatusCodes.Status200OK, "application/json")]
-    public IActionResult Get() => Ok(new VersionResponse(AppVersion.Current));
+    public IActionResult Get() => Ok(new VersionResponse($"v{AppVersion.Current}"));
 }

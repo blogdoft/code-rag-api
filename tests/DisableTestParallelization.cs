@@ -1,5 +1,3 @@
-using Xunit;
-
 // -m:1 already forces MSBuild to run one test PROJECT at a time (see the "Test" step comment in
 // .forgejo/workflows/docker-publish.yml), but within a single project xUnit still runs different
 // test classes/collections concurrently by default. Several projects here (CodeRag.Api.Tests,

@@ -64,8 +64,23 @@ jobs:
       # runner's shared Docker daemon overloads it while those images pull, and
       # container-create calls for the Postgres-backed tests time out (TaskCanceledException
       # from Docker.DotNet) well before the images finish downloading.
+      #
+      # The retry is a safety net for the same class of failure at the workflow level: the
+      # concurrency block above is a best-effort guard (Forgejo's own docs: "in exceptional
+      # circumstances this cannot be guaranteed") against two runs of this workflow landing on
+      # the runner at once - e.g. a branch push and a tag push for the same commit dispatched
+      # close enough together to race the scheduler. When that happens, Testcontainers' own Ryuk
+      # resource-reaper container can time out starting under the extra load, failing otherwise
+      # passing tests (TaskCanceledException from DockerContainer.StartAsync). One retry clears
+      # a transient contention spike without masking a genuine test regression, which fails both
+      # attempts identically.
       - name: Test
-        run: dotnet test CodeRag.sln --no-build --configuration Release -m:1
+        run: |
+          for attempt in 1 2; do
+            dotnet test CodeRag.sln --no-build --configuration Release -m:1 && exit 0
+            echo "::warning::dotnet test failed (attempt $attempt/2) - retrying in case this is Testcontainers/Docker-daemon contention from an overlapping workflow run"
+          done
+          exit 1
 
   publish:
     needs: test

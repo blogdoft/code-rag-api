@@ -45,9 +45,16 @@ jobs:
 
       # -m:1 serializes test projects so Testcontainers-backed projects (Postgres, OpenAI/Ollama
       # embedding integration tests) don't pull large images concurrently and starve the shared
-      # Docker daemon - see .forgejo/workflows/docker-publish.yml for the full rationale.
+      # Docker daemon - see .forgejo/workflows/docker-publish.yml for the full rationale. The
+      # retry guards against Testcontainers' own Ryuk resource-reaper container occasionally
+      # timing out under transient load; a genuine test regression fails both attempts the same.
       - name: Test
-        run: dotnet test CodeRag.sln --no-build --configuration Release -m:1
+        run: |
+          for attempt in 1 2; do
+            dotnet test CodeRag.sln --no-build --configuration Release -m:1 && exit 0
+            echo "::warning::dotnet test failed (attempt $attempt/2) - retrying in case this is transient Testcontainers/Docker-daemon flakiness"
+          done
+          exit 1
 
   publish:
     needs: test

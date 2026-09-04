@@ -44,12 +44,17 @@ jobs:
       # gitversion.tool is already declared in .config/dotnet-tools.json. Zero-config SemVer
       # from the nearest vX.Y.Z tag: a clean version on a tagged commit, a pre-release with
       # commit-height suffix otherwise (e.g. 1.2.4-1 one commit past v1.2.3).
+      # The gitversion output is piped through `tee` (instead of being captured directly via
+      # `$(...)`) so its stdout always lands in the job log even if a later line in this step
+      # fails - a bare `$(...)` capture would otherwise swallow it, leaving the log with the
+      # "restore was successful" line immediately followed by a bare "exitcode 1" and no clue
+      # what actually broke.
       - name: Compute version (GitVersion)
         id: gitversion
         run: |
           dotnet tool restore
-          semver=$(dotnet tool run dotnet-gitversion /showvariable SemVer)
-          echo "semver=$semver" >> "$GITHUB_OUTPUT"
+          dotnet tool run dotnet-gitversion /showvariable SemVer | tee /tmp/semver.txt
+          echo "semver=$(cat /tmp/semver.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Restore
         run: dotnet restore CodeRag.sln

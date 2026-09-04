@@ -1,0 +1,8 @@
+<Project>
+
+  <ItemGroup>
+    <!-- Shared across every test project - see DisableTestParallelization.cs for why. -->
+    <Compile Include="$(MSBuildThisFileDirectory)DisableTestParallelization.cs" Link="DisableTestParallelization.cs" />
+  </ItemGroup>
+
+</Project>

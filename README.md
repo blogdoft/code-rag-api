@@ -160,6 +160,12 @@ Application and embedding-provider tests are pure unit tests (NSubstitute/Bogus/
 up a disposable Postgres/pgvector container via Testcontainers — a running Docker daemon is
 required to run those two projects.
 
+A [Husky.Net](https://github.com/alirezanet/husky.net) `pre-push` git hook runs the full suite
+above before every `git push`, aborting the push if any test fails. It's provisioned
+automatically on your first `dotnet restore`/`dotnet build` (see the `husky` MSBuild target in
+`src/CodeRag.Api/CodeRag.Api.csproj`) — no manual setup needed. Set `HUSKY=0` to skip
+provisioning it, or `HUSKY=0 git push` to bypass it for a single push.
+
 ## CI/CD
 
 `.github/workflows/docker-publish.yml` and `.forgejo/workflows/docker-publish.yml` both build,

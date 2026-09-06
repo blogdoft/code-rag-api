@@ -50,4 +50,13 @@
     <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
 
+  <!-- Provisions the pre-push git hook (.husky/pre-push, runs the full test suite) on every
+       contributor's first restore - CI checks out a fresh worktree each run and has no use for
+       a local git hook, so it's skipped there. Set HUSKY=0 to opt out locally. -->
+  <Target Name="husky" BeforeTargets="Restore;CollectPackageReferences"
+          Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true' AND '$(GITHUB_ACTIONS)' != 'true'">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory)../../" />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory)../../" />
+  </Target>
+
 </Project>

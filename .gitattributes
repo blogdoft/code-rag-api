@@ -1,0 +1,4 @@
+# Normalize line endings to LF regardless of what a tool (editor, dotnet format, ...) writes to
+# the working tree - matches .editorconfig's end_of_line=lf and neutralizes a dotnet-format quirk
+# where trimming trailing blank lines can leave a stray CRLF on the last line.
+* text=auto eol=lf

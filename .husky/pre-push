@@ -1,0 +1,8 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# -m:1 forces MSBuild to run test projects one at a time - several of them (CodeRag.Api.Tests,
+# CodeRag.Infrastructure.Database.Tests, the OpenAI/Ollama embedding integration tests) spin up
+# Testcontainers-managed Docker containers, and running them in parallel overloads a single
+# Docker daemon. Mirrors the CI test step in .forgejo/workflows/docker-publish.yml.
+dotnet test CodeRag.sln -m:1

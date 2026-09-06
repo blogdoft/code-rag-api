@@ -50,13 +50,25 @@
     <AdditionalFiles Include="..\..\stylecop.json" />
   </ItemGroup>
 
-  <!-- Provisions the pre-push git hook (.husky/pre-push, runs the full test suite) on every
-       contributor's first restore - CI checks out a fresh worktree each run and has no use for
-       a local git hook, so it's skipped there. Set HUSKY=0 to opt out locally. -->
-  <Target Name="husky" BeforeTargets="Restore;CollectPackageReferences"
-          Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true' AND '$(GITHUB_ACTIONS)' != 'true'">
-    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory)../../" />
-    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory)../../" />
+  <PropertyGroup>
+    <HuskyRoot>$(MSBuildThisFileDirectory)../../</HuskyRoot>
+  </PropertyGroup>
+
+  <!-- Provisions the pre-push/pre-commit git hooks on every contributor's first restore -
+       official Husky.Net recipe (https://alirezanet.github.io/Husky.Net/guide/automate.html),
+       skipped on CI runners and via the Inputs/Outputs incremental check on repeat local builds.
+       The Dockerfile additionally sets HUSKY=0 for its build stage - that context has no .git
+       (dockerignored) and never copies .config/dotnet-tools.json before restoring this project. -->
+  <Target Name="Husky" AfterTargets="Restore"
+          Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true' AND '$(GITHUB_ACTIONS)' != 'true'"
+          Inputs="$(HuskyRoot).config/dotnet-tools.json"
+          Outputs="$(HuskyRoot).husky/_/install.stamp">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(HuskyRoot)" />
+    <Touch Files="$(HuskyRoot).husky/_/install.stamp" AlwaysCreate="true" Condition="Exists('$(HuskyRoot).husky/_')" />
+    <ItemGroup>
+      <FileWrites Include="$(HuskyRoot).husky/_/install.stamp" />
+    </ItemGroup>
   </Target>
 
 </Project>

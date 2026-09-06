@@ -2,6 +2,11 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG VERSION=0.0.0-dev
 WORKDIR /src
 
+# .dockerignore excludes .git and this stage never copies .config/dotnet-tools.json before the
+# restore below - the husky MSBuild target (CodeRag.Api.csproj) would otherwise fail here trying
+# to install a git hook into a repo that doesn't exist in this build context.
+ENV HUSKY=0
+
 COPY CodeRag.sln stylecop.json ./
 COPY src/CodeRag.Api/CodeRag.Api.csproj src/CodeRag.Api/
 COPY src/CodeRag.Application/CodeRag.Application.csproj src/CodeRag.Application/

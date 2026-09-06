@@ -1,3 +1,4 @@
+using BlogDoFT.Libs.Api.OpenTelemetry.Extensions;
 using CodeRag.Api;
 using CodeRag.Api.Filters;
 using CodeRag.Api.OpenApi;
@@ -157,6 +158,13 @@ try
         });
     }
 
+    // Spans HTTP server requests and every outgoing HttpClient call (Ollama embeddings/
+    // reranking, Cohere reranking) for the APM traces/RED-metrics pipeline in the observability
+    // namespace (otel-collector -> Tempo, whose metrics-generator derives request rate/error/
+    // duration from spans). A no-op locally, since appsettings.json defaults every exporter to
+    // DoNotUse - the cluster configmap turns tracing on via Observability__* env vars.
+    builder.Services.AddOtel(builder.Configuration);
+
     builder.Services.AddApplication();
     builder.Services.AddDatabaseInfrastructure();
 
@@ -192,6 +200,8 @@ try
     {
         app.UseForwardedHeaders();
     }
+
+    app.UseOpenTelemetry();
 
     if (app.Environment.IsDevelopment())
     {

@@ -5,17 +5,18 @@ name: Build, test and publish Docker image
 
 on:
   push:
-    branches: [main]
     tags: ["v*.*.*"]
   pull_request:
     branches: [main]
 
-# A main push and a tag push landing close together (e.g. tagging a release right after
-# pushing main) each trigger their own run of this workflow. The publish/update-gitops jobs run
-# directly on the self-hosted runner host (no container isolation) and update-gitops pushes to a
-# shared external repo (argo-local-apps) - two overlapping runs can race on the runner's working
-# directory or clobber each other's push there. Unlike a mirror sync, each run here produces a
-# distinct, meaningful image version, so runs are queued (not cancelled) rather than dropped.
+# Build/publish/deploy only fires for a vX.Y.Z tag push - a plain main push only runs the test
+# job (below, via the pull_request trigger for PRs; main commits themselves run no workflow at
+# all here). Two tags pushed close together each trigger their own run of this workflow. The
+# publish/update-gitops jobs run directly on the self-hosted runner host (no container
+# isolation) and update-gitops pushes to a shared external repo (argo-local-apps) - two
+# overlapping runs can race on the runner's working directory or clobber each other's push
+# there. Unlike a mirror sync, each run here produces a distinct, meaningful image version, so
+# runs are queued (not cancelled) rather than dropped.
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -73,8 +74,8 @@ jobs:
       # The retry is a safety net for the same class of failure at the workflow level: the
       # concurrency block above is a best-effort guard (Forgejo's own docs: "in exceptional
       # circumstances this cannot be guaranteed") against two runs of this workflow landing on
-      # the runner at once - e.g. a branch push and a tag push for the same commit dispatched
-      # close enough together to race the scheduler. When that happens, Testcontainers' own Ryuk
+      # the runner at once - e.g. two vX.Y.Z tags pushed close enough together to race the
+      # scheduler. When that happens, Testcontainers' own Ryuk
       # resource-reaper container can time out starting under the extra load, failing otherwise
       # passing tests (TaskCanceledException from DockerContainer.StartAsync). One retry clears
       # a transient contention spike without masking a genuine test regression, which fails both
@@ -101,17 +102,14 @@ jobs:
       - name: Log in to the container registry
         run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login "${{ vars.REGISTRY }}" -u "${{ vars.REGISTRY_USERNAME }}" --password-stdin
 
-      # The image tag is always the GitVersion-computed SemVer, which is unique per commit
-      # (the pre-release commit-height suffix increments even without a new tag) - deploy_tag
-      # mirrors it 1:1 so the update-gitops job always sees a diff to sync. `latest` is only
-      # added when this run was triggered by pushing a vX.Y.Z tag, not on every main push.
+      # The image tag is always the GitVersion-computed SemVer (a clean version, since this only
+      # ever runs on a tagged commit) - deploy_tag mirrors it 1:1 so the update-gitops job always
+      # sees a diff to sync. Every run here is a vX.Y.Z tag push, so `latest` is always tagged
+      # alongside it.
       - name: Determine image tags
         id: tag
         run: |
-          tags="${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${VERSION}"
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            tags="$tags ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:latest"
-          fi
+          tags="${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:${VERSION} ${{ vars.REGISTRY }}/${{ vars.REGISTRY_IMAGE }}:latest"
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
           echo "deploy_tag=${VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -130,9 +128,6 @@ jobs:
 
   update-gitops:
     needs: publish
-    # Only main pushes update the app-of-apps repo - version tags are published but not
-    # auto-deployed.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4

@@ -63,13 +63,18 @@ jobs:
       - name: Build
         run: dotnet build CodeRag.sln --no-restore --configuration Release
 
-      # -m:1 forces MSBuild to run test projects one at a time. Several projects
-      # (CodeRag.Api.Tests, CodeRag.Infrastructure.Database.Tests, and the OpenAI/Ollama
-      # embedding integration tests) spin up Testcontainers-managed Docker containers with
-      # large images (pgvector, text-embeddings-inference). Running them in parallel on this
-      # runner's shared Docker daemon overloads it while those images pull, and
-      # container-create calls for the Postgres-backed tests time out (TaskCanceledException
-      # from Docker.DotNet) well before the images finish downloading.
+      # --filter "Category!=Integration" skips the OpenAI/Ollama embedding provider tests tagged
+      # [Trait("Category", "Integration")] - they pull real model-serving images (Ollama,
+      # text-embeddings-inference) via Testcontainers, which was flaky enough on this runner's
+      # shared Docker daemon (slow pulls timing out, container-create calls failing outright
+      # under contention) to not be worth running on every CI build; they still run locally
+      # (dotnet test, or the pre-push hook) where there's no shared daemon to contend with.
+      #
+      # -m:1 forces MSBuild to run the remaining test projects one at a time. CodeRag.Api.Tests
+      # and CodeRag.Infrastructure.Database.Tests still spin up a real Postgres/pgvector
+      # container each via Testcontainers - running them in parallel on this runner's shared
+      # Docker daemon overloads it while those images pull, and container-create calls time out
+      # (TaskCanceledException from Docker.DotNet) well before the images finish downloading.
       #
       # The retry is a safety net for the same class of failure at the workflow level: the
       # concurrency block above is a best-effort guard (Forgejo's own docs: "in exceptional
@@ -83,7 +88,7 @@ jobs:
       - name: Test
         run: |
           for attempt in 1 2; do
-            dotnet test CodeRag.sln --no-build --configuration Release -m:1 && exit 0
+            dotnet test CodeRag.sln --no-build --configuration Release -m:1 --filter "Category!=Integration" && exit 0
             echo "::warning::dotnet test failed (attempt $attempt/2) - retrying in case this is Testcontainers/Docker-daemon contention from an overlapping workflow run"
           done
           exit 1

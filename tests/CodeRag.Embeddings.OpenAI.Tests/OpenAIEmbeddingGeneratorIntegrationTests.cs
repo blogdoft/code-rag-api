@@ -13,6 +13,7 @@ namespace CodeRag.Embeddings.OpenAI.Tests;
 /// <see cref="OpenAIEmbeddingGeneratorTests"/>, which only proves we parse a response shape we
 /// assumed was correct, this proves the request/response really work end to end.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class OpenAIEmbeddingGeneratorIntegrationTests : IAsyncLifetime
 {
     private const string Model = "sentence-transformers/all-MiniLM-L6-v2";

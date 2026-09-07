@@ -10,6 +10,7 @@ namespace CodeRag.Embeddings.Ollama.Tests;
 /// we assumed was correct - this proves the request Ollama actually receives, and its actual
 /// response, both really work.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class OllamaEmbeddingGeneratorIntegrationTests : IAsyncLifetime
 {
     // Smallest embedding model Ollama publishes (~46 MB), to keep the container pull fast.

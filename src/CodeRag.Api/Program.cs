@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Events;
 using System.Text.Json.Serialization;
 
 Log.Logger = new LoggerConfiguration()
@@ -165,6 +166,11 @@ try
     // DoNotUse - the cluster configmap turns tracing on via Observability__* env vars.
     builder.Services.AddOtel(builder.Configuration);
 
+    // Backs the k8s readiness/liveness probes. Deliberately excluded from both the Swagger/
+    // Scalar document (ExcludeFromDescription below) and Serilog request logging (GetLevel
+    // below) - a probe hit every few seconds by kubelet is noise, not an API call.
+    builder.Services.AddHealthChecks();
+
     builder.Services.AddApplication();
     builder.Services.AddDatabaseInfrastructure();
 
@@ -209,12 +215,32 @@ try
         app.MapScalarApiReference(options => options.WithOpenApiRoutePattern("/swagger/v1/swagger.json"));
     }
 
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options =>
+    {
+        // Below the configured Serilog:MinimumLevel:Default ("Information"), so the kubelet's
+        // periodic probe hits never actually get written - same effect as skipping the log
+        // entirely, without special-casing the sink/pipeline.
+        options.GetLevel = (httpContext, _, ex) =>
+        {
+            if (httpContext.Request.Path.StartsWithSegments("/health"))
+            {
+                return LogEventLevel.Verbose;
+            }
+
+            return ex is not null || httpContext.Response.StatusCode > 499
+                ? LogEventLevel.Error
+                : LogEventLevel.Information;
+        };
+    });
     app.UseHttpsRedirection();
     app.UseCors(FrontendCorsPolicy);
     app.UseAuthorization();
     app.MapControllers();
     app.MapMcp("/mcp");
+
+    // Not part of the public API contract (openapi.yaml) or the generated Swagger/Scalar
+    // document - it exists purely for k8s readiness/liveness probes and deploy tooling.
+    app.MapHealthChecks("/health").ExcludeFromDescription();
 
     await app.RunAsync();
 }

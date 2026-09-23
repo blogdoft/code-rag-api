@@ -7,7 +7,9 @@ metadata:
     # Traefik a 90s response-header timeout for this backend instead of the default unlimited
     # wait, so slow reranking requests get a bounded, generous ceiling instead of an
     # inconsistent 504 further upstream. Format: <namespace>-<serverstransport-name>@kubernetescrd.
-    traefik.ingress.kubernetes.io/service.serverstransport: code-rag-api-code-rag-api-transport@kubernetescrd
+    # Deployed into the shared code-brain namespace (argo-local-apps'
+    # bootstrap/applications/code-brain/code-rag-api.yaml), not its own dedicated namespace.
+    traefik.ingress.kubernetes.io/service.serverstransport: code-brain-code-rag-api-transport@kubernetescrd
 spec:
   selector:
     app: code-rag-api

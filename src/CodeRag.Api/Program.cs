@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Resources;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -171,6 +172,12 @@ try
     // spans (the sampler follows the parent's decision).
     builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
         options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health"));
+
+    // The shared library names the service after the "ApplicationName" configuration key, but that
+    // key is reserved by the ASP.NET host and always resolves to the assembly name, so it can't be
+    // overridden from configuration. Set here instead, after AddOtel so it wins.
+    var otelServiceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? "code-rag-api";
+    builder.Services.AddOpenTelemetry().ConfigureResource(resource => resource.AddService(otelServiceName));
 
     // Backs the k8s readiness/liveness probes. Deliberately excluded from both the Swagger/
     // Scalar document (ExcludeFromDescription below) and Serilog request logging (GetLevel

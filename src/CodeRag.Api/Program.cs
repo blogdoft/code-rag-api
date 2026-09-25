@@ -14,6 +14,7 @@ using CodeRag.Reranking.Ollama;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using OpenTelemetry.Instrumentation.AspNetCore;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -166,6 +167,11 @@ try
     // DoNotUse - the cluster configmap turns tracing on via Observability__* env vars.
     builder.Services.AddOtel(builder.Configuration);
 
+    // The kubelet's probe hits are noise in the APM: dropping them here also drops their child
+    // spans (the sampler follows the parent's decision).
+    builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
+        options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health"));
+
     // Backs the k8s readiness/liveness probes. Deliberately excluded from both the Swagger/
     // Scalar document (ExcludeFromDescription below) and Serilog request logging (GetLevel
     // below) - a probe hit every few seconds by kubelet is noise, not an API call.
@@ -240,7 +246,7 @@ try
 
     // Not part of the public API contract (openapi.yaml) or the generated Swagger/Scalar
     // document - it exists purely for k8s readiness/liveness probes and deploy tooling.
-    app.MapHealthChecks("/health").ExcludeFromDescription();
+    app.MapHealthChecks("/health").ExcludeFromDescription().DisableHttpMetrics();
 
     await app.RunAsync();
 }
